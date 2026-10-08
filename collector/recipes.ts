@@ -7,6 +7,7 @@ import { dirname, join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import type { BonusTable, ItemMeta, Location, Recipe, RecipeInput, RecipesFile } from '../src/types';
 import { parseApiId, recipeKey, refiningFamily, toApiId } from '../src/engine/ids';
+import { buildFarming, farmingIds } from './farming';
 
 const BASE_URL = 'https://raw.githubusercontent.com/ao-data/ao-bin-dumps/master';
 
@@ -85,8 +86,15 @@ export function unsellableReason(uniquename: string, it: Raw | undefined): strin
  * Le workflow prices.yml régénère recipes.json si celui de la branche data porte une autre version
  * (ou n'en porte pas), pour que les nouveaux ID soient collectés dès le cycle suivant.
  * 2 : exclusion des non vendables, équipement @4, recettes alternatives (variant).
+ * 3 : fermes des îles (champ `farming`, ID agricoles collectés), sources loot.json + farmingmodifiers.json.
  */
-export const GENERATOR_VERSION = 2;
+export const GENERATOR_VERSION = 3;
+
+/** Sources facultatives des fermes (loot.json, farmingmodifiers.json). */
+export interface FarmingSources {
+  loot?: any;
+  farmingModifiers?: any;
+}
 
 /** Niveau d'enchantement maximal de l'équipement (le jeu définit @1 à @4). */
 export const MAX_EQUIPMENT_ENCHANT = 4;
@@ -96,8 +104,9 @@ export function buildRecipesFile(
   formattedJson: any,
   modifiersJson: any,
   generatedAt: string,
+  farmingSources?: FarmingSources,
 ): RecipesFile {
-  return buildRecipesReport(itemsJson, formattedJson, modifiersJson, generatedAt).file;
+  return buildRecipesReport(itemsJson, formattedJson, modifiersJson, generatedAt, farmingSources).file;
 }
 
 export interface RecipesReport {
@@ -111,6 +120,7 @@ export function buildRecipesReport(
   formattedJson: any,
   modifiersJson: any,
   generatedAt: string,
+  farmingSources?: FarmingSources,
 ): RecipesReport {
   // --- Index de tous les items par uniquename ---
   const items = new Map<string, Raw>();
@@ -264,8 +274,11 @@ export function buildRecipesReport(
     if (f && f.UniqueName) names.set(String(f.UniqueName), f.LocalizedNames ?? null);
   }
 
-  // --- Méta : sorties + tous les ingrédients ---
-  const metaIds = new Set<string>();
+  // --- Fermes (si loot.json est fourni) ---
+  const farming = farmingSources?.loot ? buildFarming(root, farmingSources.loot, farmingSources.farmingModifiers) : null;
+
+  // --- Méta : sorties + tous les ingrédients + ID agricoles ---
+  const metaIds = new Set<string>(farmingIds(farming));
   for (const r of recipes.values()) {
     metaIds.add(r.outputId);
     for (const i of r.inputs) metaIds.add(i.id);
@@ -314,7 +327,9 @@ export function buildRecipesReport(
   });
   // Un item exclu ne doit pas réapparaître via une autre recette.
   for (const r of recipeList) excluded.delete(r.outputId);
-  return { file: { generatedAt, generatorVersion: GENERATOR_VERSION, recipes: recipeList, meta, bonuses }, excludedIds: [...excluded].sort() };
+  const file: RecipesFile = { generatedAt, generatorVersion: GENERATOR_VERSION, recipes: recipeList, meta, bonuses };
+  if (farming) file.farming = farming;
+  return { file, excludedIds: [...excluded].sort() };
 }
 
 // ---------------------------------------------------------------------------
@@ -334,10 +349,13 @@ async function loadLocal(dir: string) {
   const formattedPath = (await exists(join(dir, 'items-formatted.json')))
     ? join(dir, 'items-formatted.json')
     : join(dir, 'formatted', 'items.json');
+  const optional = async (name: string) => ((await exists(join(dir, name))) ? readJson(join(dir, name)) : null);
   return Promise.all([
     readJson(join(dir, 'items.json')),
     readJson(formattedPath),
     readJson(join(dir, 'craftingmodifiers.json')),
+    optional('loot.json'),
+    optional('farmingmodifiers.json'),
   ]);
 }
 
@@ -348,7 +366,13 @@ async function loadRemote() {
     if (!res.ok) throw new Error(`HTTP ${res.status} sur ${url}`);
     return res.json();
   };
-  return Promise.all([get('items.json'), get('formatted/items.json'), get('craftingmodifiers.json')]);
+  return Promise.all([
+    get('items.json'),
+    get('formatted/items.json'),
+    get('craftingmodifiers.json'),
+    get('loot.json'),
+    get('farmingmodifiers.json'),
+  ]);
 }
 
 async function main() {
@@ -364,8 +388,14 @@ async function main() {
   const localDir = opt('--local');
   const outPath = resolve(opt('--out') ?? 'out/recipes.json');
 
-  const [itemsJson, formattedJson, modifiersJson] = localDir ? await loadLocal(localDir) : await loadRemote();
-  const { file, excludedIds } = buildRecipesReport(itemsJson, formattedJson, modifiersJson, new Date().toISOString());
+  const [itemsJson, formattedJson, modifiersJson, lootJson, farmingModifiersJson] = localDir
+    ? await loadLocal(localDir)
+    : await loadRemote();
+  if (!lootJson) console.warn('loot.json absent : pas de données agricoles (farming).');
+  const { file, excludedIds } = buildRecipesReport(itemsJson, formattedJson, modifiersJson, new Date().toISOString(), {
+    loot: lootJson,
+    farmingModifiers: farmingModifiersJson,
+  });
 
   await mkdir(dirname(outPath), { recursive: true });
   await writeFile(outPath, JSON.stringify(file));
@@ -388,6 +418,11 @@ async function main() {
   const missing = file.meta.filter((m) => m.nameFr === m.id).map((m) => m.id);
   if (missing.length) console.log(`Sans nom (${missing.length}) :`, missing.slice(0, 20).join(', '));
   console.log('Bonus :', Object.keys(file.bonuses).join(', '));
+  if (file.farming) {
+    console.log(
+      `Fermes : ${file.farming.crops.length} cultures/herbes, ${file.farming.animals.length} animaux, ${farmingIds(file.farming).length} ID agricoles`,
+    );
+  }
   console.log(`Fichier : ${outPath} — ${(size / 1024 / 1024).toFixed(2)} Mo (${size} octets)`);
 }
 

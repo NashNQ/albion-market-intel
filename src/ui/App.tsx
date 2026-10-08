@@ -10,6 +10,9 @@ import { BlackMarket } from './pages/BlackMarket';
 import { ItemDetail } from './pages/ItemDetail';
 import { SettingsPage } from './pages/Settings';
 import { RouteBuilder } from './pages/RouteBuilder';
+import { HomePage } from './pages/Home';
+import { AboutPage } from './pages/About';
+import { FarmsPage } from './pages/Farms';
 import { shareCodeFromHash } from './data/routesStore';
 
 export interface ParsedRoute {
@@ -27,6 +30,15 @@ export function parseHash(hash: string): ParsedRoute {
   }
   const [head, ...rest] = h.split('/');
   switch (head) {
+    case '':
+    case 'accueil':
+      return { name: 'accueil' };
+    case 'raffinage':
+      return { name: 'raffinage' };
+    case 'fermes':
+      return { name: 'fermes' };
+    case 'a-propos':
+      return { name: 'a-propos' };
     case 'craft':
       return { name: 'craft' };
     case 'black-market':
@@ -45,7 +57,7 @@ export function parseHash(hash: string): ParsedRoute {
       }
       return { name: 'raffinage' };
     default:
-      return { name: 'raffinage' };
+      return { name: 'accueil' };
   }
 }
 
@@ -113,11 +125,15 @@ export function App() {
   };
 
   const { status } = market;
-  const needsData = route.name !== 'reglages';
+  // Accueil et étude de cas restent lisibles sans données (chiffres en chargement).
+  const needsData = route.name !== 'reglages' && route.name !== 'accueil' && route.name !== 'a-propos';
   let body;
   if (needsData && status === 'empty') body = <EmptyScreen />;
   else if (needsData && (!market.snapshot || !market.recipes))
     body = status === 'error' ? <ErrorScreen onRetry={market.reload} /> : <Skeleton />;
+  else if (route.name === 'accueil') body = <HomePage />;
+  else if (route.name === 'a-propos') body = <AboutPage />;
+  else if (route.name === 'fermes') body = <FarmsPage />;
   else if (route.name === 'craft') body = <TopCrafting />;
   else if (route.name === 'black-market') body = <BlackMarket />;
   else if (route.name === 'reglages') body = <SettingsPage />;

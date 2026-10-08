@@ -94,6 +94,8 @@ export interface RecipesFile {
   recipes: Recipe[];
   meta: ItemMeta[];
   bonuses: BonusTable;
+  /** Fermes des îles (générateur ≥ 3). */
+  farming?: FarmingData;
 }
 
 export interface Settings {
@@ -143,3 +145,72 @@ export interface RouteResult {
 }
 
 export interface RankingRow extends RouteResult {}
+
+// ---------------------------------------------------------------------------
+// Fermes des îles (agriculture + élevage) — ajouté au générateur v3, champ optionnel de RecipesFile.
+
+/** Culture (ferme) ou herbe (jardin d'herbes). Durées en secondes. */
+export interface FarmCrop {
+  kind: 'crop' | 'herb';
+  seedId: string;
+  cropId: string;
+  tier: number;
+  growSeconds: number;
+  /** Récolte moyenne par emplacement (moyenne de la plage loot.json, ex. 3-6 → 4,5). */
+  harvestAvg: number;
+  /** Chance d'obtenir un ver par récolte (loot.json). */
+  wormChance: number;
+  wormId: string;
+  /** Chance de récupérer la graine (harvest/seed/@chance). */
+  seedChance: number;
+  /** Bonus de graine avec arrosage au focus (@activefarmbonus). */
+  focusBonus: number;
+  /** Coût en focus d'un arrosage, par emplacement (@activefarmfocuscost). */
+  focusCost: number;
+  /** Prix de la graine chez le PNJ fermier (craftingrequirements/@silver). */
+  npcSeedPrice: number | null;
+  /** Nutrition d'une unité de récolte (nourriture animale). */
+  nutrition: number;
+}
+
+/** Animal de ferme du pâturage (poulet, chèvre, oie, mouton, cochon, vache). */
+export interface FarmAnimal {
+  babyId: string;
+  grownId: string;
+  tier: number;
+  growSeconds: number;
+  offspringChance: number;
+  focusBonus: number;
+  focusCost: number;
+  npcBabyPrice: number | null;
+  /** Nutrition nécessaire pour la croissance du petit. */
+  nutritionMax: number;
+  /** Nourriture favorite (ID de récolte) et bonus de nutrition associé (+100 % = 1). */
+  favoriteFood: string | null;
+  favoriteBonus: number;
+  /** Produit de l'adulte (œufs, lait) ; null pour le cochon. */
+  productId: string | null;
+  productAvg: number | null;
+  productionSeconds: number | null;
+  /** Consommation de l'adulte en nutrition par jour (864 par 22 h). */
+  adultConsumptionPerDay: number;
+  meatId: string | null;
+  meatPerAdult: number;
+}
+
+/** Autre animal du pâturage (montures) : collecté pour les prix, non classé en V1. */
+export interface FarmOtherAnimal {
+  babyId: string;
+  grownId: string;
+  tier: number;
+}
+
+export interface FarmingData {
+  crops: FarmCrop[];
+  animals: FarmAnimal[];
+  otherAnimals?: FarmOtherAnimal[];
+  /** Bonus de rendement par lieu et par élément cultivable (ID graine ou ID adulte), @islandvalue. */
+  cityBonuses: Partial<Record<Location, Record<string, number>>>;
+  /** Nutrition des nourritures acceptées (récoltes). */
+  foodNutrition: Record<string, number>;
+}

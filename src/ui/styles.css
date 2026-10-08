@@ -66,6 +66,15 @@
   --chip-ink: #ffffff;
 }
 
+/* Mouvement : courbes et durées partagées (indépendantes du thème). */
+:root {
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
+  --dur-fast: 140ms;
+  --dur: 200ms;
+  --press: scale(0.97);
+}
+
 *,
 *::before,
 *::after {
@@ -95,6 +104,16 @@ a {
   outline: 2px solid var(--focus);
   outline-offset: 2px;
   border-radius: 3px;
+}
+/* Pas de contour au clic souris, seulement au clavier. */
+:focus:not(:focus-visible) {
+  outline: none;
+}
+/* Les champs gardent un contour collé à leur bord. */
+input:focus-visible,
+select:focus-visible {
+  outline-offset: 0;
+  border-color: var(--focus);
 }
 
 code {
@@ -211,10 +230,13 @@ code {
   align-items: center;
   justify-content: center;
   cursor: pointer;
+  transition:
+    transform var(--dur-fast) var(--ease-out),
+    color var(--dur) var(--ease-out),
+    background-color var(--dur) var(--ease-out);
 }
-.theme-btn:hover {
-  color: var(--text);
-  border-color: var(--line-strong);
+.theme-btn:active {
+  transform: var(--press);
 }
 
 .tabs {
@@ -226,19 +248,53 @@ code {
   overflow-x: auto;
 }
 .tab {
+  position: relative;
   color: var(--muted);
   text-decoration: none;
   font-weight: 600;
-  padding: 8px 12px 9px;
-  border-bottom: 3px solid transparent;
+  padding: 8px 12px 12px;
   white-space: nowrap;
+  transition: color var(--dur) var(--ease-out);
 }
-.tab:hover {
-  color: var(--text);
+/* Soulignement : une barre mise à l'échelle (transform), jamais une largeur animée. */
+.tab::after {
+  content: '';
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  bottom: 0;
+  height: 3px;
+  border-radius: 2px 2px 0 0;
+  background: var(--accent);
+  transform: scaleX(0);
+  transform-origin: center;
+  opacity: 0;
+  transition:
+    transform var(--dur) var(--ease-out),
+    opacity var(--dur-fast) var(--ease-out);
 }
 .tab[aria-current='page'] {
   color: var(--text);
-  border-bottom-color: var(--accent);
+}
+.tab[aria-current='page']::after {
+  transform: scaleX(1);
+  opacity: 1;
+}
+.tab:focus-visible {
+  outline-offset: -2px;
+}
+@media (hover: hover) and (pointer: fine) {
+  .theme-btn:hover {
+    color: var(--text);
+    border-color: var(--line-strong);
+  }
+  .tab:hover {
+    color: var(--text);
+  }
+  .tab:not([aria-current='page']):hover::after {
+    transform: scaleX(0.35);
+    opacity: 0.5;
+  }
 }
 
 .late-banner {
@@ -297,22 +353,43 @@ code {
   border-radius: 6px;
   padding: 6px 12px;
   cursor: pointer;
+  transition:
+    transform var(--dur-fast) var(--ease-out),
+    background-color var(--dur) var(--ease-out),
+    color var(--dur) var(--ease-out);
 }
 .btn {
   background: var(--surface-2);
   color: var(--text);
   border: 1px solid var(--line-strong);
 }
-.btn:hover {
-  border-color: var(--accent);
-}
 .btn-ghost {
   background: transparent;
   color: var(--accent);
   border: 1px solid transparent;
 }
-.btn-ghost:hover {
-  border-color: var(--line-strong);
+/* Retour au toucher sur tout ce qui se presse (boutons et liens-boutons). */
+.btn:active,
+.btn-ghost:active,
+.seg:active,
+.sort-btn:active,
+a.btn:active {
+  transform: var(--press);
+}
+.btn:disabled,
+.btn-ghost:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+  transform: none;
+}
+@media (hover: hover) and (pointer: fine) {
+  .btn:hover {
+    border-color: var(--accent);
+    background-color: color-mix(in srgb, var(--accent) 8%, var(--surface-2));
+  }
+  .btn-ghost:hover {
+    border-color: var(--line-strong);
+  }
 }
 .btn-ghost.on-alert {
   color: #fff;
@@ -701,6 +778,10 @@ th[aria-sort='descending'] .sort-ind {
   border: 0;
   padding: 5px 12px;
   cursor: pointer;
+  transition:
+    transform var(--dur-fast) var(--ease-out),
+    background-color var(--dur-fast) var(--ease-out),
+    color var(--dur-fast) var(--ease-out);
 }
 .seg + .seg {
   border-left: 1px solid var(--line-strong);
@@ -900,6 +981,46 @@ table.plain tbody th {
   }
 }
 
+/* ---------- Entrée de page ----------
+   Une seule fois par changement de page : opacité + 6 px. `backwards` ne laisse aucun transform
+   après l'animation, donc rien ne perturbe les en-têtes collants ni le défilement des tableaux. */
+@keyframes page-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .main > * {
+    animation: page-in var(--dur) var(--ease-out) backwards;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .main > * {
+    animation: page-fade var(--dur) ease backwards;
+  }
+  @keyframes page-fade {
+    from {
+      opacity: 0;
+    }
+  }
+  /* Le retour au toucher reste visible par la couleur, sans mouvement. */
+  .btn:active,
+  .btn-ghost:active,
+  .seg:active,
+  .sort-btn:active,
+  .theme-btn:active {
+    transform: none;
+  }
+  .tab::after {
+    transition: opacity var(--dur-fast) ease;
+    transform: scaleX(1);
+  }
+  .tab:not([aria-current='page'])::after {
+    opacity: 0;
+  }
+}
+
 /* ---------- Pied de page ---------- */
 .site-foot {
   border-top: 1px solid var(--line);
@@ -1032,9 +1153,9 @@ table.plain tbody th {
   .page-head--hero::before { background-image: url('/img/hero-800.webp'); }
 }
 @media (prefers-reduced-motion: no-preference) {
-  .page-head--hero::before { animation: hero-in 900ms ease-out both; }
+  .page-head--hero::before { animation: hero-in 280ms var(--ease-out) both; }
 }
-@keyframes hero-in { from { opacity: 0; transform: scale(1.03); } to { opacity: 1; transform: none; } }
+@keyframes hero-in { from { opacity: 0; transform: scale(1.02); } to { opacity: 1; transform: none; } }
 .page-head--art { display: grid; grid-template-columns: 1fr; gap: 4px; }
 .page-art {
   width: 100%;
