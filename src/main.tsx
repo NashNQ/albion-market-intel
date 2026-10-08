@@ -1,2 +1,10 @@
+import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
-createRoot(document.getElementById('root')!).render(<p>Albion Market Intel — en construction</p>);
+import { App } from './ui/App';
+import './ui/styles.css';
+
+createRoot(document.getElementById('root')!).render(
+  <StrictMode>
+    <App />
+  </StrictMode>,
+);

@@ -1,0 +1,68 @@
+import { createContext, useContext } from 'react';
+import type { ItemMeta, MarketItem, MarketSnapshot, RecipesFile, Recipe, RouteResult, Settings } from '../types';
+
+export interface RankStatsView {
+  evaluated: number;
+  missing: number;
+  stale: number;
+  suspect: number;
+  lowVolume: number;
+}
+
+export interface RankingsView {
+  refining: RouteResult[];
+  crafting: RouteResult[];
+  blackMarket: RouteResult[];
+  stats: RankStatsView;
+  ms: number;
+}
+
+/**
+ * Normalise la sortie de useRankings : accepte la forme du contrat
+ * ({ refining, crafting, blackMarket, stats, ms }) ou la forme { rankings, computeMs }.
+ */
+export function toRankingsView(raw: unknown): RankingsView | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const r = raw as Record<string, unknown>;
+  if ('rankings' in r) {
+    const inner = r.rankings as Omit<RankingsView, 'ms'> | null;
+    if (!inner) return null;
+    return { ...inner, ms: typeof r.computeMs === 'number' ? r.computeMs : 0 };
+  }
+  if (Array.isArray(r.refining)) {
+    const v = r as unknown as RankingsView;
+    return { ...v, ms: typeof v.ms === 'number' ? v.ms : 0 };
+  }
+  return null;
+}
+
+export interface AppData {
+  snapshot: MarketSnapshot | null;
+  recipes: RecipesFile | null;
+  rankings: RankingsView | null;
+  settings: Settings;
+  updateSettings: (patch: Partial<Settings>) => void;
+  resetSettings: () => void;
+  metaById: Map<string, ItemMeta>;
+  itemById: Map<string, MarketItem>;
+  recipeByOutput: Map<string, Recipe>;
+  now: Date;
+}
+
+export const AppDataContext = createContext<AppData | null>(null);
+
+export function useAppData(): AppData {
+  const v = useContext(AppDataContext);
+  if (!v) throw new Error('AppDataContext manquant');
+  return v;
+}
+
+export function buildIndexes(snapshot: MarketSnapshot | null, recipes: RecipesFile | null) {
+  const metaById = new Map<string, ItemMeta>();
+  const itemById = new Map<string, MarketItem>();
+  const recipeByOutput = new Map<string, Recipe>();
+  for (const m of recipes?.meta ?? []) metaById.set(m.id, m);
+  for (const r of recipes?.recipes ?? []) if (!recipeByOutput.has(r.outputId)) recipeByOutput.set(r.outputId, r);
+  for (const i of snapshot?.items ?? []) itemById.set(i.id, i);
+  return { metaById, itemById, recipeByOutput };
+}
