@@ -63,6 +63,9 @@ export interface Recipe {
   subcategory: string; // @shopsubcategory1
   tier: number;
   enchant: number;
+  /** Recette alternative : ID API de la ressource brute enchantée utilisée (ex. T4_ROCK_LEVEL1@1).
+   *  Absent pour la recette principale. Clé unique d'une recette = outputId + variant. */
+  variant?: string;
 }
 
 export interface ItemMeta {
@@ -86,6 +89,8 @@ export type BonusTable = Partial<Record<Location, LocationBonus>>;
 /** Contenu de recipes.json servi au navigateur. */
 export interface RecipesFile {
   generatedAt: string;
+  /** Version du générateur (collector/recipes.ts). Absente des fichiers anciens (= 1). */
+  generatorVersion?: number;
   recipes: Recipe[];
   meta: ItemMeta[];
   bonuses: BonusTable;
@@ -101,6 +106,8 @@ export interface Settings {
   dailyCap: number;
   maxPriceAgeH: number;
   minVolume: number;
+  /** Repli « prix estimé » : moyenne 7 jours du même lieu quand le prix récent manque. */
+  historyFallback: boolean;
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -113,6 +120,7 @@ export const DEFAULT_SETTINGS: Settings = {
   dailyCap: 1000,
   maxPriceAgeH: 6,
   minVolume: 20,
+  historyFallback: false,
 };
 
 export type DataStatus = 'fresh' | 'stale' | 'error'; // stale = updatedAt > 30 min
@@ -131,7 +139,7 @@ export interface RouteResult {
   confidence: number; // C
   score: number | null; // null pour le Black Market
   oldestPriceAgeH: number;
-  flags: ('red-zone' | 'mists' | 'suspect' | 'thin-history')[];
+  flags: ('red-zone' | 'mists' | 'suspect' | 'thin-history' | 'estimated')[];
 }
 
 export interface RankingRow extends RouteResult {}

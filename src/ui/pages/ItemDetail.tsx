@@ -2,7 +2,7 @@ import { useMemo } from 'react';
 import { LOCATIONS, type Location, type RouteResult } from '../../types';
 import { bestRoute, bestCraftLocation, buildPriceIndex, saleDeduction, stationFee, type RouteFailure } from '../../engine';
 import { useAppData } from '../context';
-import { ageHFromIso, fmt2, fmtAgeH, fmtInt, fmtPct, fmtSilver, itemHref, subcatLabel } from '../format';
+import { ageHFromIso, categoryLabel, fmt2, fmtAgeH, fmtInt, fmtPct, fmtSilver, itemHref, subcatLabel } from '../format';
 import { ItemIcon } from '../components/ItemIcon';
 import { ConfidenceBar, Flags, LocChip } from '../components/Route';
 
@@ -15,10 +15,11 @@ const FAILURE_FR: Record<RouteFailure, string> = {
 };
 
 export function ItemDetail({ id }: { id: string }) {
-  const { snapshot, recipes, rankings, metaById, itemById, recipeByOutput, settings, now } = useAppData();
+  const { snapshot, recipes, rankings, metaById, itemById, recipeByOutput, recipesByOutput, settings, now } = useAppData();
   const meta = metaById.get(id);
   const item = itemById.get(id);
   const recipe = recipeByOutput.get(id);
+  const alternatives = (recipesByOutput?.get(id) ?? []).filter((r) => r.variant);
   const name = meta?.nameFr ?? id;
 
   const index = useMemo(
@@ -65,7 +66,8 @@ export function ItemDetail({ id }: { id: string }) {
                 T{meta.tier}.{meta.enchant}
               </span>
             )}
-            {meta && <span>{subcatLabel(meta.subcategory)}</span>}
+            {meta && meta.category && <span>{categoryLabel(meta.category)}</span>}
+            {meta && meta.subcategory && <span>{subcatLabel(meta.subcategory)}</span>}
             <code className="item-id">{id}</code>
           </p>
         </div>
@@ -137,6 +139,7 @@ export function ItemDetail({ id }: { id: string }) {
                     {bb ? (
                       <>
                         {fmtSilver(bb.price)} à <LocChip loc={bb.loc} />
+                        {bb.estimated && <EstimatedBadge />}
                       </>
                     ) : (
                       'pas de prix récent'
@@ -146,6 +149,21 @@ export function ItemDetail({ id }: { id: string }) {
               );
             })}
           </ul>
+          {alternatives.length > 0 && (
+            <>
+              <h3 className="alt-title">Recettes alternatives</h3>
+              <ul className="ingredients alt-recipes">
+                {alternatives.map((alt) => (
+                  <li key={alt.variant}>
+                    <span className="qty">×{alt.outputQty}</span>
+                    <span>
+                      {alt.inputs.map((i) => `${i.qty} ${metaById.get(i.id)?.nameFr ?? i.id}`).join(' + ')}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </>
+          )}
         </section>
       )}
 
@@ -166,6 +184,15 @@ export function ItemDetail({ id }: { id: string }) {
   );
 }
 
+/** Badge « Estimé » : prix tiré de la moyenne 7 jours faute de prix récent. */
+export function EstimatedBadge() {
+  return (
+    <span className="flag flag-estimated" title="Prix estimé : moyenne sur 7 jours du même lieu, faute de prix récent.">
+      Estimé
+    </span>
+  );
+}
+
 function Breakdown({ r }: { r: RouteResult }) {
   const { metaById, settings } = useAppData();
   const fee = stationFee(r.recipe.itemValue, settings.stationFee);
@@ -178,6 +205,15 @@ function Breakdown({ r }: { r: RouteResult }) {
 
   return (
     <ol className="steps">
+      {r.recipe.variant && (
+        <li>
+          <h3>Recette alternative</h3>
+          <p>
+            Cette route utilise la recette à partir de {metaById.get(r.recipe.variant)?.nameFr ?? r.recipe.variant}, qui
+            produit {r.recipe.outputQty} unités par fabrication.
+          </p>
+        </li>
+      )}
       <li>
         <h3>Achat des ingrédients</h3>
         <p>
@@ -235,7 +271,8 @@ function Breakdown({ r }: { r: RouteResult }) {
       <li>
         <h3>Confiance (C)</h3>
         <p>
-          Prix le plus vieux : {fmtAgeH(r.oldestPriceAgeH)}. <ConfidenceBar c={r.confidence} />
+          Prix récent le plus vieux : {fmtAgeH(r.oldestPriceAgeH)}. Confiance <ConfidenceBar c={r.confidence} />
+          {r.flags.includes('estimated') && ' (plafonnée à 0,60 : prix estimé utilisé)'}
         </p>
         <Flags flags={r.flags} />
       </li>

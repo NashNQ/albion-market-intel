@@ -6,7 +6,7 @@ import { mkdir, readFile, writeFile, stat, access } from 'node:fs/promises';
 import { dirname, join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import type { BonusTable, ItemMeta, Location, Recipe, RecipeInput, RecipesFile } from '../src/types';
-import { parseApiId, refiningFamily, toApiId } from '../src/engine/ids';
+import { parseApiId, recipeKey, refiningFamily, toApiId } from '../src/engine/ids';
 
 const BASE_URL = 'https://raw.githubusercontent.com/ao-data/ao-bin-dumps/master';
 
@@ -46,16 +46,50 @@ function resourceApiId(res: Raw): string {
   return toApiId(name, level);
 }
 
-/** Première recette sans ingrédient FACTION (et avec au moins un ingrédient). */
-function pickRequirement(reqs: unknown): Raw | null {
+/** Recettes sans ingrédient FACTION (et avec au moins un ingrédient), dans l'ordre du fichier. */
+function usableRequirements(reqs: unknown): Raw[] {
+  const out: Raw[] = [];
   for (const r of arr(reqs as Raw | Raw[])) {
     const res = arr(r?.craftresource as Raw | Raw[]);
     if (res.length === 0) continue;
     if (res.some((c) => String(c['@uniquename']).includes('FACTION'))) continue;
-    return r;
+    out.push(r);
   }
+  return out;
+}
+
+/** Première recette sans ingrédient FACTION (et avec au moins un ingrédient). */
+function pickRequirement(reqs: unknown): Raw | null {
+  return usableRequirements(reqs)[0] ?? null;
+}
+
+/**
+ * Raison d'exclusion d'un item non vendable à l'hôtel des ventes, ou null s'il est exploitable.
+ * Critères vérifiés sur items.json (72 ID du périmètre concernés) :
+ * @showinmarketplace="false", @tradable="false", présence de @requiredaccesslevel (GM/interne),
+ * nom contenant _PROTOTYPE (objets non sortis), ou @unlockedtoequip="true".
+ */
+export function unsellableReason(uniquename: string, it: Raw | undefined): string | null {
+  if (uniquename.includes('_PROTOTYPE')) return 'prototype';
+  if (!it) return null;
+  if (String(it['@showinmarketplace'] ?? '') === 'false') return 'showinmarketplace=false';
+  if (String(it['@tradable'] ?? '') === 'false') return 'tradable=false';
+  if (it['@requiredaccesslevel'] !== undefined) return 'requiredaccesslevel';
+  // Objets débloqués à l'équipement (récompenses, vanités) : non vendus à l'hôtel des ventes.
+  if (String(it['@unlockedtoequip'] ?? '') === 'true') return 'unlockedtoequip';
   return null;
 }
+
+/**
+ * Version du générateur : À INCRÉMENTER à chaque changement du périmètre ou du format de recipes.json.
+ * Le workflow prices.yml régénère recipes.json si celui de la branche data porte une autre version
+ * (ou n'en porte pas), pour que les nouveaux ID soient collectés dès le cycle suivant.
+ * 2 : exclusion des non vendables, équipement @4, recettes alternatives (variant).
+ */
+export const GENERATOR_VERSION = 2;
+
+/** Niveau d'enchantement maximal de l'équipement (le jeu définit @1 à @4). */
+export const MAX_EQUIPMENT_ENCHANT = 4;
 
 export function buildRecipesFile(
   itemsJson: any,
@@ -63,6 +97,21 @@ export function buildRecipesFile(
   modifiersJson: any,
   generatedAt: string,
 ): RecipesFile {
+  return buildRecipesReport(itemsJson, formattedJson, modifiersJson, generatedAt).file;
+}
+
+export interface RecipesReport {
+  file: RecipesFile;
+  /** Sorties écartées car non vendables (elles-mêmes ou un de leurs ingrédients). */
+  excludedIds: string[];
+}
+
+export function buildRecipesReport(
+  itemsJson: any,
+  formattedJson: any,
+  modifiersJson: any,
+  generatedAt: string,
+): RecipesReport {
   // --- Index de tous les items par uniquename ---
   const items = new Map<string, Raw>();
   const root: Raw = itemsJson?.items ?? {};
@@ -98,7 +147,22 @@ export function buildRecipesFile(
     return sum / Math.max(1, num(req['@amountcrafted'], 1));
   };
 
+  // Exclusion des items non vendables (sortie ou ingrédient).
+  const excluded = new Set<string>();
+  const isUnsellable = (apiId: string): boolean => {
+    const { base } = parseApiId(apiId);
+    return unsellableReason(base, items.get(base)) !== null;
+  };
+
+  /** Clé unique d'une recette : outputId, + '|' + variant pour une recette alternative. */
   const recipes = new Map<string, Recipe>();
+  const addRecipe = (r: Recipe) => {
+    if (isUnsellable(r.outputId) || r.inputs.some((i) => isUnsellable(i.id))) {
+      excluded.add(r.outputId);
+      return;
+    }
+    recipes.set(recipeKey(r), r);
+  };
   const toInputs = (req: Raw): RecipeInput[] =>
     arr(req.craftresource as Raw | Raw[]).map((c) => ({
       id: resourceApiId(c),
@@ -114,24 +178,46 @@ export function buildRecipesFile(
     const tier = num(it['@tier']);
     const level = it['@enchantmentlevel'] !== undefined ? num(it['@enchantmentlevel']) : levelFromName(name);
     if (tier < 2 || tier > 8 || level < 0 || level > 4) continue;
-    const req = pickRequirement(it.craftingrequirements);
+    const reqs = usableRequirements(it.craftingrequirements);
+    const req = reqs[0];
     if (!req) continue;
     const outputId = toApiId(name, level);
-    recipes.set(outputId, {
-      outputId,
-      outputQty: num(req['@amountcrafted'], 1),
-      inputs: toInputs(req),
-      itemValue: num(it['@itemvalue']) || requirementValue(req),
-      kind: 'refining',
+    const itemValue = num(it['@itemvalue']) || requirementValue(req);
+    const common = {
+      kind: 'refining' as const,
       bonusKey: family,
       category: String(it['@shopcategory'] ?? ''),
       subcategory: String(it['@shopsubcategory1'] ?? ''),
       tier,
       enchant: level,
+    };
+    addRecipe({
+      outputId,
+      outputQty: num(req['@amountcrafted'], 1),
+      inputs: toInputs(req),
+      itemValue,
+      ...common,
     });
+    // Recettes alternatives (ex. STONEBLOCK depuis ROCK_LEVEL1/2/3, sortie ×2/×4/×8) :
+    // variant = ID API de la ressource brute enchantée utilisée.
+    for (const alt of reqs.slice(1)) {
+      const inputs = toInputs(alt);
+      const enchanted = inputs.find((i) => parseApiId(i.id).level > 0);
+      if (!enchanted) continue;
+      const outputQty = num(alt['@amountcrafted'], 1);
+      addRecipe({
+        outputId,
+        outputQty,
+        inputs,
+        // Hypothèse : les frais de station portent sur la valeur de tout ce qui est produit.
+        itemValue: itemValue * outputQty,
+        ...common,
+        variant: enchanted.id,
+      });
+    }
   }
 
-  // --- Équipement : equipmentitem + weapon, T4–T8, @0–@3 ---
+  // --- Équipement : equipmentitem + weapon, T4–T8, @0–@4 ---
   for (const it of [...arr(root.equipmentitem as Raw | Raw[]), ...arr(root.weapon as Raw | Raw[])]) {
     const name = String(it['@uniquename']);
     const tier = num(it['@tier']);
@@ -146,7 +232,7 @@ export function buildRecipesFile(
     const baseReq = pickRequirement(it.craftingrequirements);
     if (!baseReq) continue;
     const base = baseValue(name);
-    recipes.set(name, {
+    addRecipe({
       outputId: name,
       outputQty: num(baseReq['@amountcrafted'], 1),
       inputs: toInputs(baseReq),
@@ -156,11 +242,11 @@ export function buildRecipesFile(
     });
     for (const ench of arr(it.enchantments?.enchantment as Raw | Raw[])) {
       const level = num(ench['@enchantmentlevel']);
-      if (level < 1 || level > 3) continue;
+      if (level < 1 || level > MAX_EQUIPMENT_ENCHANT) continue;
       const req = pickRequirement(ench.craftingrequirements);
       if (!req) continue;
       const outputId = toApiId(name, level);
-      recipes.set(outputId, {
+      addRecipe({
         outputId,
         outputQty: num(req['@amountcrafted'], 1),
         inputs: toInputs(req),
@@ -221,8 +307,14 @@ export function buildRecipesFile(
     };
   }
 
-  const recipeList = [...recipes.values()].sort((a, b) => (a.outputId < b.outputId ? -1 : a.outputId > b.outputId ? 1 : 0));
-  return { generatedAt, recipes: recipeList, meta, bonuses };
+  const recipeList = [...recipes.values()].sort((a, b) => {
+    const ka = recipeKey(a);
+    const kb = recipeKey(b);
+    return ka < kb ? -1 : ka > kb ? 1 : 0;
+  });
+  // Un item exclu ne doit pas réapparaître via une autre recette.
+  for (const r of recipeList) excluded.delete(r.outputId);
+  return { file: { generatedAt, generatorVersion: GENERATOR_VERSION, recipes: recipeList, meta, bonuses }, excludedIds: [...excluded].sort() };
 }
 
 // ---------------------------------------------------------------------------
@@ -261,6 +353,10 @@ async function loadRemote() {
 
 async function main() {
   const args = process.argv.slice(2);
+  if (args.includes('--print-version')) {
+    console.log(GENERATOR_VERSION);
+    return;
+  }
   const opt = (name: string) => {
     const i = args.indexOf(name);
     return i >= 0 ? args[i + 1] : undefined;
@@ -269,7 +365,7 @@ async function main() {
   const outPath = resolve(opt('--out') ?? 'out/recipes.json');
 
   const [itemsJson, formattedJson, modifiersJson] = localDir ? await loadLocal(localDir) : await loadRemote();
-  const file = buildRecipesFile(itemsJson, formattedJson, modifiersJson, new Date().toISOString());
+  const { file, excludedIds } = buildRecipesReport(itemsJson, formattedJson, modifiersJson, new Date().toISOString());
 
   await mkdir(dirname(outPath), { recursive: true });
   await writeFile(outPath, JSON.stringify(file));
@@ -283,7 +379,9 @@ async function main() {
   }
   const frCount = file.meta.filter((m) => m.nameFr !== m.id && m.nameFr !== m.nameEn).length;
   const frOrSame = file.meta.filter((m) => m.nameFr !== m.id).length;
-  console.log(`Recettes : ${file.recipes.length}`);
+  console.log(`Recettes : ${file.recipes.length} (dont ${file.recipes.filter((r) => r.variant).length} alternatives)`);
+  console.log(`Sorties exclues (non vendables) : ${excludedIds.length}`);
+  console.log(`Équipement @4 : ${file.recipes.filter((r) => r.kind === 'crafting' && r.enchant === 4).length}`);
   console.log('Par kind :', byKind);
   console.log('Par category :', byCat);
   console.log(`Méta : ${file.meta.length} items ; noms FR : ${((100 * frOrSame) / file.meta.length).toFixed(2)} % (dont ${frCount} distincts de l'anglais)`);

@@ -34,12 +34,18 @@ jobs:
       - name: Récupérer la branche data (si elle existe)
         run: bash collector/fetch-prev.sh prev
 
-      - name: Recettes (si absentes)
+      - name: Recettes (si absentes ou générées par une autre version du générateur)
         run: |
-          if [ ! -f prev/recipes.json ]; then
+          WANT=$(pnpm -s exec tsx collector/recipes.ts --print-version)
+          HAVE=$(node -e '
+            try { const v = JSON.parse(require("fs").readFileSync("prev/recipes.json", "utf8")).generatorVersion; console.log(v ?? "absent"); }
+            catch { console.log("absent"); }
+          ')
+          if [ ! -f prev/recipes.json ] || [ "$HAVE" != "$WANT" ]; then
+            echo "Régénération de recipes.json (branche data : $HAVE, générateur : $WANT)"
             pnpm collect:recipes
           else
-            echo "prev/recipes.json présent, pas de régénération"
+            echo "prev/recipes.json à jour (générateur v$WANT), pas de régénération"
           fi
 
       - name: Prix

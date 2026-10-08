@@ -9,14 +9,22 @@ import { TopCrafting } from './pages/TopCrafting';
 import { BlackMarket } from './pages/BlackMarket';
 import { ItemDetail } from './pages/ItemDetail';
 import { SettingsPage } from './pages/Settings';
+import { RouteBuilder } from './pages/RouteBuilder';
+import { shareCodeFromHash } from './data/routesStore';
 
 export interface ParsedRoute {
   name: RouteName;
   itemId?: string;
+  /** Code de route partagée (#/routes?r=…). */
+  share?: string;
 }
 
 export function parseHash(hash: string): ParsedRoute {
   const h = hash.replace(/^#\/?/, '');
+  if (h === 'routes' || h.startsWith('routes?') || h.startsWith('routes/')) {
+    const share = shareCodeFromHash('#/' + h);
+    return share ? { name: 'routes', share } : { name: 'routes' };
+  }
   const [head, ...rest] = h.split('/');
   switch (head) {
     case 'craft':
@@ -83,15 +91,15 @@ function useTheme(): [Theme, () => void] {
 export function App() {
   const market = useMarket();
   const [settings, updateSettings, resetSettings] = useSettings();
-  const rawRankings = useRankings(market.snapshot, market.recipes, settings);
+  // `now` suit l'âge des données (rafraîchi chaque minute par useMarket).
+  const nowKey = Math.floor(market.ageMinutes ?? 0);
+  const now = useMemo(() => new Date(), [nowKey, market.snapshot]); // eslint-disable-line react-hooks/exhaustive-deps
+  const rawRankings = useRankings(market.snapshot, market.recipes, settings, now.getTime());
   const rankings = useMemo(() => toRankingsView(rawRankings), [rawRankings]);
   const route = useHashRoute();
   const [theme, toggleTheme] = useTheme();
 
   const indexes = useMemo(() => buildIndexes(market.snapshot, market.recipes), [market.snapshot, market.recipes]);
-  // `now` suit l'âge des données (rafraîchi chaque minute par useMarket).
-  const nowKey = Math.floor(market.ageMinutes ?? 0);
-  const now = useMemo(() => new Date(), [nowKey, market.snapshot]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const data: AppData = {
     snapshot: market.snapshot,
@@ -113,6 +121,7 @@ export function App() {
   else if (route.name === 'craft') body = <TopCrafting />;
   else if (route.name === 'black-market') body = <BlackMarket />;
   else if (route.name === 'reglages') body = <SettingsPage />;
+  else if (route.name === 'routes') body = <RouteBuilder shareCode={route.share ?? null} />;
   else if (route.name === 'item' && route.itemId) body = <ItemDetail id={route.itemId} />;
   else body = <TopRefining />;
 

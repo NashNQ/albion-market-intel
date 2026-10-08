@@ -1,6 +1,6 @@
 import { useId } from 'react';
 import type { ItemMeta, RouteResult } from '../../types';
-import { subcatLabel } from '../format';
+import { categoryLabel, subcatLabel } from '../format';
 
 export interface FilterState {
   q: string;
@@ -16,13 +16,18 @@ const norm = (s: string) =>
   s
     .normalize('NFD')
     .replace(/[̀-ͯ]/g, '')
-    .toLowerCase();
+    .toLowerCase()
+    // Apostrophes typographiques (’ ‘ ʼ) et backtick → apostrophe droite.
+    .replace(/[\u2018\u2019\u02BC`]/g, "'");
+
+/** Valeur du filtre catégorie : « category|subcategory » (une sous-catégorie peut exister dans deux catégories). */
+export const catKey = (category: string, subcategory: string): string => `${category}|${subcategory}`;
 
 export function applyFilters(rows: RouteResult[], f: FilterState, meta: Map<string, ItemMeta>): RouteResult[] {
   const q = norm(f.q.trim());
   return rows.filter((r) => {
     if (f.noRedZone && r.flags.includes('red-zone')) return false;
-    if (f.subcat && r.recipe.subcategory !== f.subcat) return false;
+    if (f.subcat && (f.subcat.includes('|') ? catKey(r.recipe.category, r.recipe.subcategory) : r.recipe.subcategory) !== f.subcat) return false;
     if (f.tier && String(r.recipe.tier) !== f.tier) return false;
     if (f.enchant && String(r.recipe.enchant) !== f.enchant) return false;
     if (q) {
@@ -44,9 +49,20 @@ export function Filters({
   onChange: (f: FilterState) => void;
 }) {
   const id = useId();
-  const subcats = [...new Set(rows.map((r) => r.recipe.subcategory))].sort((a, b) =>
-    subcatLabel(a).localeCompare(subcatLabel(b), 'fr'),
-  );
+  // Sous-catégories regroupées par catégorie, libellés français (repli sur l'ID brut).
+  const groups = new Map<string, Set<string>>();
+  for (const r of rows) {
+    let g = groups.get(r.recipe.category);
+    if (!g) groups.set(r.recipe.category, (g = new Set()));
+    g.add(r.recipe.subcategory);
+  }
+  const subcatGroups = [...groups.entries()]
+    .map(([cat, set]) => ({
+      cat,
+      label: categoryLabel(cat),
+      subcats: [...set].sort((a, b) => subcatLabel(a).localeCompare(subcatLabel(b), 'fr')),
+    }))
+    .sort((a, b) => a.label.localeCompare(b.label, 'fr'));
   const tiers = [...new Set(rows.map((r) => r.recipe.tier))].sort((a, b) => a - b);
   const enchants = [...new Set(rows.map((r) => r.recipe.enchant))].sort((a, b) => a - b);
   const set = (p: Partial<FilterState>) => onChange({ ...value, ...p });
@@ -68,10 +84,14 @@ export function Filters({
         <span className="f-label">Catégorie</span>
         <select id={`${id}-cat`} value={value.subcat} onChange={(e) => set({ subcat: e.target.value })}>
           <option value="">Toutes</option>
-          {subcats.map((s) => (
-            <option key={s} value={s}>
-              {subcatLabel(s)}
-            </option>
+          {subcatGroups.map((g) => (
+            <optgroup key={g.cat} label={g.label}>
+              {g.subcats.map((s) => (
+                <option key={s} value={catKey(g.cat, s)}>
+                  {subcatLabel(s)}
+                </option>
+              ))}
+            </optgroup>
           ))}
         </select>
       </label>

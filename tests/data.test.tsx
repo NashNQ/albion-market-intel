@@ -31,12 +31,15 @@ describe('computeStatus', () => {
 });
 
 describe('sanitizeSettings', () => {
-  it('ramène les valeurs hors bornes aux défauts', () => {
+  it('borne les nombres hors bornes (M5) ; valeurs non numériques → défaut', () => {
     const s = sanitizeSettings({
       marketShare: 1.5, dailyCap: 0, maxPriceAgeH: 49, minVolume: -1,
       stationFee: 5001, dailyBonus: 0.15, mode: 'x', premium: 'yes',
     });
-    expect(s).toEqual(DEFAULT_SETTINGS);
+    expect(s).toEqual({ ...DEFAULT_SETTINGS, marketShare: 1, dailyCap: 1, maxPriceAgeH: 48, minVolume: 0, stationFee: 5000 });
+    expect(sanitizeSettings({ maxPriceAgeH: 0.2, stationFee: -3, marketShare: -1 })).toEqual({
+      ...DEFAULT_SETTINGS, maxPriceAgeH: 1, stationFee: 0, marketShare: 0,
+    });
   });
   it('conserve les valeurs valides (bornes incluses)', () => {
     const s = sanitizeSettings({
@@ -78,10 +81,10 @@ describe('useSettings', () => {
   it('valide les patchs et les données stockées', () => {
     localStorage.setItem(SETTINGS_KEY, JSON.stringify({ marketShare: 3, minVolume: 50 }));
     const { result } = renderHook(() => useSettings());
-    expect(result.current[0].marketShare).toBe(DEFAULT_SETTINGS.marketShare);
+    expect(result.current[0].marketShare).toBe(1); // M5 : borné, pas remis au défaut
     expect(result.current[0].minVolume).toBe(50);
     act(() => result.current[1]({ maxPriceAgeH: 100 }));
-    expect(result.current[0].maxPriceAgeH).toBe(DEFAULT_SETTINGS.maxPriceAgeH);
+    expect(result.current[0].maxPriceAgeH).toBe(48);
   });
 
   it('JSON corrompu → défauts', () => {

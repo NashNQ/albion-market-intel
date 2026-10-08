@@ -170,7 +170,8 @@ describe('interface', () => {
   it('Top raffinage : titre, stats, ligne de table et fraîcheur', () => {
     const { container } = go('#/raffinage');
     expect(screen.getByRole('heading', { level: 1, name: 'Top raffinage' })).toBeTruthy();
-    expect(screen.getByText(/1 234 recettes évaluées · 56 sans données · 7 prix périmés · 2 suspects · 90 trop peu liquides · calcul en 42 ms/)).toBeTruthy();
+    expect(screen.getByText(/Statistiques globales : 1 234 recettes évaluées · 56 sans données · 7 prix périmés · 2 suspects · 90 trop peu liquides · calcul en 42 ms/)).toBeTruthy();
+    expect(screen.getByText('1 route rentable')).toBeTruthy();
     const table = screen.getByRole('table');
     const rows = within(table).getAllByRole('row');
     expect(rows.length).toBe(2); // en-tête + 1 ligne
@@ -210,6 +211,10 @@ describe('interface', () => {
     expect(within(table).queryByRole('columnheader', { name: /Volume/ })).toBeNull();
     expect(within(table).getByRole('columnheader', { name: /Profit\/unité/ }).getAttribute('aria-sort')).toBe('descending');
     expect(within(table).getAllByRole('row').length).toBe(2);
+    // 3f : la ligne de statistiques concerne le Black Market, pas les stats globales.
+    const stats = container.querySelector('.stats-line')!.textContent!;
+    expect(stats).toMatch(/^Black Market : 1 ligne classée/);
+    expect(stats).not.toMatch(/Statistiques globales|1 234/);
     expectFrench(container);
   });
 
@@ -222,6 +227,8 @@ describe('interface', () => {
     expect(screen.getByText('1 500 ag')).toBeTruthy();
     expect(screen.getByRole('link', { name: /Bûches de cèdre peu communes/ })).toBeTruthy();
     expect(screen.getByText('Profit par unité')).toBeTruthy();
+    // 3b : confiance sur 1 (« 0,92 »), jamais « 92 » seul.
+    expect(container.querySelector('.cbar-num')!.textContent).toBe('0,92');
     expectFrench(container);
   });
 
@@ -239,6 +246,7 @@ describe('interface', () => {
     expect(screen.getByLabelText('Âge maximal des prix')).toBeTruthy();
     expect(screen.getByText('Prix affiché par la station pour 100 de nutrition.')).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Réinitialiser les réglages' })).toBeTruthy();
+    expect(screen.getByLabelText('Utiliser la moyenne 7 jours quand le prix récent manque (prix estimé)')).toBeTruthy();
     expectFrench(container);
   });
 

@@ -13,7 +13,10 @@ export interface RankingsView {
   refining: RouteResult[];
   crafting: RouteResult[];
   blackMarket: RouteResult[];
+  /** Statistiques globales (raffinage + craft). */
   stats: RankStatsView;
+  /** Statistiques propres au Black Market (absentes des anciennes formes). */
+  bmStats?: RankStatsView;
   ms: number;
 }
 
@@ -45,7 +48,10 @@ export interface AppData {
   resetSettings: () => void;
   metaById: Map<string, ItemMeta>;
   itemById: Map<string, MarketItem>;
+  /** Recette principale par outputId (sans variant). */
   recipeByOutput: Map<string, Recipe>;
+  /** Toutes les recettes d'un outputId (principale d'abord, puis alternatives). */
+  recipesByOutput: Map<string, Recipe[]>;
   now: Date;
 }
 
@@ -61,8 +67,17 @@ export function buildIndexes(snapshot: MarketSnapshot | null, recipes: RecipesFi
   const metaById = new Map<string, ItemMeta>();
   const itemById = new Map<string, MarketItem>();
   const recipeByOutput = new Map<string, Recipe>();
+  const recipesByOutput = new Map<string, Recipe[]>();
   for (const m of recipes?.meta ?? []) metaById.set(m.id, m);
-  for (const r of recipes?.recipes ?? []) if (!recipeByOutput.has(r.outputId)) recipeByOutput.set(r.outputId, r);
+  for (const r of recipes?.recipes ?? []) {
+    const list = recipesByOutput.get(r.outputId);
+    if (list) list.push(r);
+    else recipesByOutput.set(r.outputId, [r]);
+  }
+  for (const [id, list] of recipesByOutput) {
+    list.sort((a, b) => (a.variant ? 1 : 0) - (b.variant ? 1 : 0));
+    recipeByOutput.set(id, list[0]);
+  }
   for (const i of snapshot?.items ?? []) itemById.set(i.id, i);
-  return { metaById, itemById, recipeByOutput };
+  return { metaById, itemById, recipeByOutput, recipesByOutput };
 }

@@ -1,5 +1,6 @@
 // Formatage et libellés français partagés par l'interface.
 import type { Location, RouteResult } from '../types';
+import { categoryLabel, subcategoryLabel } from './i18n';
 
 const nf0 = new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 0 });
 const nf1 = new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 1, minimumFractionDigits: 1 });
@@ -70,61 +71,27 @@ export const FLAG_LABEL: Record<RouteResult['flags'][number], { short: string; l
   mists: { short: 'Brumes', long: 'La route passe par Brecilien, accessible uniquement par les Brumes.' },
   'thin-history': { short: 'Historique mince', long: 'Moins de 5 jours de ventes sur 7 au lieu de vente : volume peu fiable.' },
   suspect: { short: 'Suspect', long: 'Prix de vente anormalement élevé par rapport à la moyenne sur 7 jours.' },
+  estimated: {
+    short: 'Estimé',
+    long: 'Au moins un prix récent manquait : la moyenne sur 7 jours du même lieu a été utilisée (prix estimé). Confiance plafonnée à 0,60.',
+  },
 };
 
-/** Traductions des sous-catégories de boutique les plus courantes ; repli sur l'identifiant brut. */
-const SUBCAT_FR: Record<string, string> = {
-  planks: 'Planches',
-  metalbar: 'Lingots',
-  leather: 'Cuir',
-  cloth: 'Tissu',
-  stoneblock: 'Blocs de pierre',
-  wood: 'Bois',
-  ore: 'Minerai',
-  hide: 'Peaux',
-  fiber: 'Fibres',
-  rock: 'Pierre',
-  bag: 'Sacs',
-  cape: 'Capes',
-  sword: 'Épées',
-  axe: 'Haches',
-  mace: 'Masses',
-  hammer: 'Marteaux',
-  spear: 'Lances',
-  dagger: 'Dagues',
-  quarterstaff: 'Bâtons de combat',
-  bow: 'Arcs',
-  crossbow: 'Arbalètes',
-  firestaff: 'Bâtons de feu',
-  holystaff: 'Bâtons sacrés',
-  arcanestaff: 'Bâtons arcaniques',
-  froststaff: 'Bâtons de givre',
-  cursestaff: 'Bâtons maudits',
-  naturestaff: 'Bâtons de nature',
-  knuckles: 'Gantelets',
-  shapeshifterstaff: 'Bâtons de métamorphe',
-  plate_armor: 'Armures de plaques',
-  plate_helmet: 'Casques de plaques',
-  plate_shoes: 'Bottes de plaques',
-  leather_armor: 'Vestes de cuir',
-  leather_helmet: 'Capuches de cuir',
-  leather_shoes: 'Chaussures de cuir',
-  cloth_armor: 'Robes de tissu',
-  cloth_helmet: 'Capuchons de tissu',
-  cloth_shoes: 'Sandales de tissu',
-  shield: 'Boucliers',
-  book: 'Grimoires',
-  orb: 'Orbes',
-  torch: 'Torches',
-  totem: 'Totems',
-  horn: 'Cors',
-  gatherergear: 'Équipement de récolte',
-  tools: 'Outils',
-  potions: 'Potions',
-  food: 'Nourriture',
-  mount: 'Montures',
-};
-export const subcatLabel = (s: string): string => SUBCAT_FR[s] ?? SUBCAT_FR[s.toLowerCase()] ?? s.replace(/_/g, ' ');
+/** Libellé français d'une sous-catégorie (délègue à i18n.ts, repli sur l'ID brut). */
+export const subcatLabel = (s: string): string => subcategoryLabel(s);
+export { categoryLabel, subcategoryLabel };
+
+/**
+ * Accord en nombre : plural(1, 'route rentable') → « 1 route rentable »,
+ * plural(3, 'route rentable') → « 3 routes rentables ». Chaque mot reçoit un « s »
+ * (sauf s'il finit déjà par s, x ou z) ; `pluralForm` force la forme plurielle.
+ * Règle française : 0 et 1 au singulier.
+ */
+export function plural(n: number, singular: string, pluralForm?: string): string {
+  const many = Math.abs(n) >= 2;
+  const word = many ? (pluralForm ?? singular.split(' ').map((w) => (/[sxz]$/i.test(w) || w === '' ? w : w + 's')).join(' ')) : singular;
+  return `${fmtInt(n)} ${word}`;
+}
 
 export const iconUrl = (id: string, size = 64): string =>
   `https://render.albiononline.com/v1/item/${id.replace(/@/g, '%40')}.png?size=${size}`;

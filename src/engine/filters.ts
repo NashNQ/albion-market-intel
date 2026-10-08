@@ -38,7 +38,8 @@ export function volumeAt(item: MarketItem, loc: Location): number | null {
 
 /** Volume suffisant ? */
 export function hasEnoughVolume(volume: number | null, settings: Pick<Settings, 'minVolume'>): boolean {
-  return volume != null && volume >= settings.minVolume;
+  // Volume nul = aucune vente observée : jamais retenu, même avec minVolume = 0.
+  return volume != null && volume > 0 && volume >= settings.minVolume;
 }
 
 /** Quantité écoulable par jour Q = min(volume × part de marché, plafond). */

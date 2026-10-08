@@ -1,0 +1,540 @@
+/* Constructeur de routes (« Mes routes ») — reprend les variables de styles.css. */
+
+.rb-page {
+  max-width: 1360px;
+}
+.rb-layout {
+  display: grid;
+  grid-template-columns: minmax(280px, 360px) minmax(0, 1fr);
+  gap: 20px;
+  align-items: start;
+}
+.rb-side,
+.rb-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-width: 0;
+}
+.rb-panel {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 12px 14px;
+}
+.rb-panel h2,
+.rb-summary h2 {
+  font-size: 17px;
+  font-weight: 800;
+  margin: 0 0 10px;
+}
+.rb-summary h3 {
+  font-size: 15px;
+  font-weight: 700;
+  margin: 14px 0 6px;
+}
+.rb-small {
+  font-size: 13px;
+}
+.rb-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+.rb-grow {
+  flex: 1 1 200px;
+  min-width: 0;
+}
+.rb-field {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+.rb-field-label {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.rb-field input,
+.rb-field select {
+  max-width: 100%;
+}
+.rb-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 14px;
+}
+.rb-check input {
+  min-height: 0;
+}
+.rb-primary {
+  background: var(--accent);
+  color: var(--accent-ink);
+  border-color: var(--accent);
+}
+.rb-primary:hover {
+  filter: brightness(1.08);
+}
+.rb-danger {
+  color: var(--danger);
+  border-color: var(--danger);
+}
+.rb-loss {
+  color: var(--danger);
+  font-weight: 700;
+}
+.rb-hint {
+  margin: 6px 0 0;
+  font-size: 13px;
+  color: var(--faint);
+  flex-basis: 100%;
+}
+.rb-error,
+.rb-ok,
+.rb-incomplete {
+  margin: 0;
+  padding: 8px 12px;
+  border-radius: 0 6px 6px 0;
+  flex-basis: 100%;
+}
+.rb-error,
+.rb-incomplete {
+  border-left: 4px solid var(--danger);
+  background: color-mix(in srgb, var(--danger) 10%, var(--surface));
+}
+.rb-ok {
+  border-left: 4px solid var(--profit);
+  background: color-mix(in srgb, var(--profit) 10%, var(--surface));
+}
+.rb-empty {
+  margin: 4px 0;
+}
+.rb-shared {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  justify-content: space-between;
+  border: 1px solid var(--accent);
+  background: color-mix(in srgb, var(--accent) 10%, var(--surface));
+  border-radius: 8px;
+  padding: 10px 14px;
+  margin-bottom: 14px;
+}
+
+/* Badges */
+.rb-badge {
+  display: inline-block;
+  font-size: 12px;
+  font-weight: 700;
+  border: 1px solid currentColor;
+  border-radius: 999px;
+  padding: 0 7px;
+  margin-left: 4px;
+  white-space: nowrap;
+}
+.rb-badge-warn {
+  color: var(--warn);
+}
+.rb-badge-danger {
+  color: var(--danger);
+}
+.rb-badge-info {
+  color: var(--accent);
+}
+.rb-badge-ok {
+  color: var(--profit);
+}
+
+/* Préréglage */
+.rb-preset {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  align-items: end;
+}
+.rb-preset .rb-field:first-child {
+  grid-column: 1 / -1;
+}
+.rb-preset .btn {
+  grid-column: 1 / -1;
+}
+.rb-preset .rb-hint,
+.rb-preset .rb-error {
+  grid-column: 1 / -1;
+}
+
+/* Liste */
+.rb-list {
+  list-style: none;
+  margin: 0 0 8px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.rb-list-item {
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 8px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.rb-list-item.is-active {
+  border-color: var(--accent);
+}
+.rb-list-main {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.rb-list-name {
+  font: inherit;
+  font-weight: 700;
+  color: var(--text);
+  background: none;
+  border: 0;
+  padding: 0;
+  text-align: left;
+  cursor: pointer;
+  overflow-wrap: anywhere;
+}
+.rb-list-name:hover {
+  color: var(--accent);
+}
+.rb-list-profit {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  align-items: center;
+  font-weight: 700;
+}
+.rb-list-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px;
+}
+.rb-list-actions .btn-ghost,
+.rb-io .btn-ghost {
+  padding: 2px 6px;
+  font-size: 13px;
+}
+.rb-confirm {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  font-size: 14px;
+}
+.rb-confirm-box {
+  border: 1px solid var(--warn);
+  border-radius: 6px;
+  padding: 8px 12px;
+  margin: 8px 0;
+}
+.rb-confirm-box p {
+  margin: 0 0 6px;
+}
+
+/* En-tête de l'éditeur */
+.rb-head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: end;
+}
+.rb-qty {
+  width: 110px;
+  text-align: right;
+}
+.rb-head-actions {
+  margin-left: auto;
+}
+.rb-link input {
+  width: 100%;
+  font-size: 13px;
+}
+
+/* Étapes */
+.rb-steps {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.rb-step {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-left: 4px solid var(--line-strong);
+  border-radius: 8px;
+  padding: 12px 14px;
+  min-width: 0;
+}
+.rb-step-final {
+  border-left-color: var(--accent);
+}
+.rb-step-head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+}
+.rb-step-num {
+  display: inline-grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: var(--surface-2);
+  border: 1px solid var(--line-strong);
+  font-weight: 800;
+  font-size: 13px;
+  flex: none;
+}
+.rb-step-title {
+  flex: 1 1 180px;
+  min-width: 0;
+}
+.rb-step-title h3 {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 800;
+  overflow-wrap: anywhere;
+}
+.rb-step-craft {
+  display: flex;
+  gap: 8px;
+  align-items: end;
+}
+.rb-rrr {
+  font-weight: 700;
+  color: var(--muted);
+  padding-bottom: 6px;
+  white-space: nowrap;
+}
+.rb-step-actions {
+  margin-left: auto;
+}
+.rb-inputs {
+  list-style: none;
+  padding: 0;
+  margin: 10px 0 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.rb-input {
+  display: grid;
+  grid-template-columns: minmax(180px, 1.2fr) minmax(200px, 1fr) minmax(120px, 0.6fr);
+  grid-template-areas:
+    'name src qty'
+    'price price price'
+    'cmp cmp cmp';
+  gap: 6px 12px;
+  align-items: center;
+  border-top: 1px solid var(--line);
+  padding-top: 8px;
+}
+.rb-input-name {
+  grid-area: name;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  min-width: 0;
+}
+.rb-input-src {
+  grid-area: src;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.rb-input-qty {
+  grid-area: qty;
+  text-align: right;
+}
+.rb-input-price {
+  grid-area: price;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 10px;
+  align-items: center;
+}
+.rb-input-cost {
+  margin-left: auto;
+  font-weight: 700;
+}
+.rb-manual input {
+  width: 120px;
+  text-align: right;
+}
+.rb-compare {
+  grid-area: cmp;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 10px;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--surface-2);
+  border-radius: 6px;
+  padding: 6px 10px;
+  font-size: 14px;
+}
+.rb-loc {
+  display: inline-flex;
+  gap: 4px;
+  align-items: center;
+}
+.rb-rest {
+  font-size: 12px;
+}
+.rb-step-stats,
+.rb-totals {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 8px 14px;
+  margin: 12px 0 0;
+}
+.rb-step-stats div,
+.rb-totals div {
+  min-width: 0;
+}
+.rb-step-stats dt,
+.rb-totals dt {
+  font-size: 12px;
+  color: var(--muted);
+  font-weight: 700;
+}
+.rb-step-stats dd,
+.rb-totals dd {
+  margin: 0;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+.rb-stat-profit dd,
+.rb-total-main dd {
+  font-size: 18px;
+  font-weight: 800;
+}
+
+/* Ajout d'étape */
+.rb-add {
+  align-self: flex-start;
+}
+.rb-addstep {
+  background: var(--surface);
+  border: 1px dashed var(--line-strong);
+  border-radius: 8px;
+  padding: 12px 14px;
+}
+.rb-addstep-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: end;
+}
+.rb-addstep-bar input[type='search'] {
+  width: 100%;
+}
+.rb-matches {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+  max-height: 320px;
+  overflow-y: auto;
+}
+.rb-match {
+  font: inherit;
+  color: var(--text);
+  background: none;
+  border: 0;
+  width: 100%;
+  text-align: left;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  padding: 4px 6px;
+  border-radius: 5px;
+  cursor: pointer;
+}
+.rb-match:hover,
+.rb-match:focus-visible {
+  background: var(--row-hover);
+}
+
+/* Résumé */
+.rb-summary {
+  background: var(--surface);
+  border: 1px solid var(--accent);
+  border-radius: 8px;
+  padding: 14px 16px;
+}
+.rb-warnings {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.rb-warn {
+  border-left: 3px solid var(--warn);
+  padding: 2px 8px;
+  font-size: 14px;
+}
+.rb-warn-danger {
+  border-left-color: var(--danger);
+}
+.rb-warn-info {
+  border-left-color: var(--accent);
+}
+
+/* Mobile : cartes empilées, aucun défilement horizontal */
+@media (max-width: 900px) {
+  .rb-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+@media (max-width: 640px) {
+  .rb-input {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas: 'name' 'src' 'qty' 'price' 'cmp';
+  }
+  .rb-input-qty {
+    text-align: left;
+  }
+  .rb-input-src select {
+    flex: 1 1 140px;
+  }
+  .rb-head-actions {
+    margin-left: 0;
+  }
+  .rb-step-craft {
+    flex-basis: 100%;
+  }
+  .rb-step-craft .rb-field {
+    flex: 1 1 auto;
+  }
+  .rb-step-actions {
+    margin-left: 0;
+  }
+  .rb-manual input {
+    width: 100%;
+  }
+  .rb-manual {
+    flex: 1 1 120px;
+  }
+  .rb-loc-name {
+    display: none;
+  }
+}
+
+/* Âge d'un prix : orange > 6 h (.age-old, styles.css), rouge > 24 h. */
+.rb-page .age-very-old {
+  color: var(--danger);
+  font-weight: 700;
+}

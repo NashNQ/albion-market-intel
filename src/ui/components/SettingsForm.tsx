@@ -162,6 +162,13 @@ export function SettingsForm({ settings: s, update, reset, compact }: Props) {
       <Field id={`${id}-vol`} label="Volume minimum" help="Ventes quotidiennes minimales au lieu de vente pour retenir une route.">
         <NumberInput id={`${id}-vol`} value={s.minVolume} min={0} step={5} suffix="/j" onChange={(n) => update({ minVolume: n })} />
       </Field>
+      <Field
+        id={`${id}-fallback`}
+        label="Utiliser la moyenne 7 jours quand le prix récent manque (prix estimé)"
+        help="Si aucun prix récent n’est disponible, la moyenne sur 7 jours du même lieu est utilisée (au moins 3 jours d’historique). Les routes concernées portent le badge « Estimé » et leur confiance est plafonnée à 0,60."
+      >
+        <Toggle id={`${id}-fallback`} checked={s.historyFallback} onChange={(b) => update({ historyFallback: b })} />
+      </Field>
       <div className="settings-actions">
         <button type="button" className="btn" onClick={reset}>
           Réinitialiser les réglages

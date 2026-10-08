@@ -1,12 +1,13 @@
 import type { ReactNode } from 'react';
 import { fmtClock, fmtInt } from '../format';
 
-export type RouteName = 'raffinage' | 'craft' | 'black-market' | 'item' | 'reglages';
+export type RouteName = 'raffinage' | 'craft' | 'black-market' | 'routes' | 'item' | 'reglages';
 
 const TABS: { route: RouteName; href: string; label: string }[] = [
   { route: 'raffinage', href: '#/raffinage', label: 'Raffinage' },
   { route: 'craft', href: '#/craft', label: 'Craft' },
   { route: 'black-market', href: '#/black-market', label: 'Black Market' },
+  { route: 'routes', href: '#/routes', label: 'Mes routes' },
   { route: 'reglages', href: '#/reglages', label: 'Réglages' },
 ];
 
@@ -45,12 +46,7 @@ export function Header({
     <header className="site-head">
       <div className="head-row">
         <a className="brand" href="#/raffinage">
-          <span className="brand-mark" aria-hidden="true">
-            <svg viewBox="0 0 24 24" width="22" height="22">
-              <path d="M12 2 21 7v10l-9 5-9-5V7z" fill="none" stroke="currentColor" strokeWidth="1.6" />
-              <path d="M7 14.5h10M8.5 11h7M10 7.5h4" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
-            </svg>
-          </span>
+          <img className="brand-mark" src="/favicon-32.png" srcSet="/favicon-32.png 1x, /apple-touch-icon.png 4x" width="26" height="26" alt="" />
           <span className="brand-name">
             Albion Market Intel <span className="brand-srv">Europe</span>
           </span>
@@ -104,6 +100,7 @@ export function LateBanner({ updatedAt, onRetry }: { updatedAt: Date | null; onR
 export function EmptyScreen() {
   return (
     <section className="state-screen" aria-labelledby="empty-title">
+      <img className="state-art" src="/img/waiting-900.webp" width="900" height="675" alt="" decoding="async" />
       <h1 id="empty-title">Première collecte en cours, revenez dans 15 minutes</h1>
       <p>
         Les prix des villes d’Europe sont en cours de récupération auprès de l’Albion Online Data Project. Cette page se

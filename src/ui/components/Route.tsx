@@ -1,5 +1,5 @@
 import type { Location, RouteResult } from '../../types';
-import { FLAG_LABEL, LOC_ABBR, LOC_KEY } from '../format';
+import { FLAG_LABEL, LOC_ABBR, LOC_KEY, fmt2 } from '../format';
 
 export function LocChip({ loc }: { loc: Location }) {
   return (
@@ -53,15 +53,25 @@ export function RouteCell({ r }: { r: RouteResult }) {
   );
 }
 
+/** Texte compact d'une route pour l'affichage mobile : « FS › LYM › CAE · Zone rouge ». */
+export function routeText(r: RouteResult): string {
+  const buys = buyLocations(r).map((l) => LOC_ABBR[l]).join(' ') || '—';
+  const path = `${buys} › ${LOC_ABBR[r.craftAt]} › ${LOC_ABBR[r.sellAt]}`;
+  return [path, ...r.flags.map((f) => FLAG_LABEL[f].short)].join(' · ');
+}
+
+/** Barre de confiance : C est un coefficient entre 0 et 1, affiché « 0,86 ». */
 export function ConfidenceBar({ c }: { c: number }) {
-  const pct = Math.round(c * 100);
+  const clamped = Math.min(1, Math.max(0, c));
+  const pct = Math.round(clamped * 100);
   const tone = c >= 0.85 ? 'hi' : c >= 0.65 ? 'mid' : 'lo';
+  const txt = fmt2(clamped);
   return (
-    <span className={`cbar cbar-${tone}`} title={`Confiance ${pct} %`}>
+    <span className={`cbar cbar-${tone}`} title={`Confiance ${txt} sur 1`}>
       <span className="cbar-track" aria-hidden="true">
         <span className="cbar-fill" style={{ width: `${pct}%` }} />
       </span>
-      <span className="cbar-num">{pct}</span>
+      <span className="cbar-num">{txt}</span>
     </span>
   );
 }

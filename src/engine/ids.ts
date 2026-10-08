@@ -30,3 +30,8 @@ export function refiningFamily(id: string): RefiningFamily | null {
   const m = /^T\d+_(PLANKS|METALBAR|LEATHER|CLOTH|STONEBLOCK)(?:_LEVEL\d+)?$/.exec(base);
   return m ? REFINED_TO_FAMILY[m[1]] : null;
 }
+
+/** Clé unique d'une recette : outputId, suivi de « |variant » pour une recette alternative. */
+export function recipeKey(r: { outputId: string; variant?: string }): string {
+  return r.variant ? `${r.outputId}|${r.variant}` : r.outputId;
+}

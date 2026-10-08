@@ -11,7 +11,7 @@ import {
   type Settings,
 } from '../types';
 import { recipeRrr } from './rrr';
-import { buyQuote, sellQuote, unitCost, unitRevenue } from './cost';
+import { ORDER_FEE, buyQuote, sellQuote, unitCost, unitRevenue } from './cost';
 import { confidence, hasEnoughVolume, isSuspect, isSuspectLow, isThinHistory, liquidity, volumeAt } from './filters';
 import { score } from './score';
 
@@ -19,6 +19,22 @@ export interface LocatedQuote {
   loc: Location;
   price: number; // prix brut (achat ou vente) selon le mode
   ageH: number;
+  /** Prix estimé (moyenne 7 jours du lieu) faute de prix récent valide — repli historyFallback. */
+  estimated?: boolean;
+}
+
+/** Jours d'historique minimum pour utiliser la moyenne 7 jours comme prix estimé. */
+export const FALLBACK_MIN_HISTORY_DAYS = 3;
+/** Plafond de confiance d'une route qui utilise au moins un prix estimé. */
+export const ESTIMATED_MAX_CONFIDENCE = 0.6;
+
+/** Moyenne 7 jours utilisable comme prix estimé au lieu `loc`, ou null. */
+export function estimatedPrice(item: MarketItem, loc: Location): number | null {
+  const avg = item.avgPrice7d?.[loc];
+  const days = item.historyDays?.[loc] ?? 0;
+  if (avg == null || !(avg > 0) || !Number.isFinite(avg)) return null;
+  if (days < FALLBACK_MIN_HISTORY_DAYS) return null;
+  return avg;
 }
 
 export interface SellCandidate extends LocatedQuote {
@@ -44,30 +60,53 @@ const SELL_LOCATIONS = LOCATIONS.filter((l) => l !== 'Black Market');
 /** Pré-calcule, pour chaque item, le meilleur achat valide et les ventes par lieu. */
 export function buildPriceIndex(snapshot: MarketSnapshot, settings: Settings, now: Date): PriceIndex {
   const index: PriceIndex = new Map();
-  const { mode, maxPriceAgeH } = settings;
+  const { mode, maxPriceAgeH, historyFallback } = settings;
   for (const item of snapshot.items) {
     let bestBuy: LocatedQuote | null = null;
     let hasAnyPrice = false;
     for (const loc of PRODUCTION_LOCATIONS) {
-      const p = item.prices[loc];
+      const p = item.prices?.[loc];
       if (!p) continue;
       if ((p.sell ?? 0) > 0 || (p.buy ?? 0) > 0) hasAnyPrice = true;
       const q = buyQuote(p, mode, now, maxPriceAgeH);
       if (q && isSuspectLow(q.price, item, loc)) continue; // ordre piège très bas
       if (q && (!bestBuy || q.price < bestBuy.price)) bestBuy = { loc, price: q.price, ageH: q.ageH };
     }
+    // Repli : aucun prix d'achat récent valide → moyenne 7 jours du lieu (prix estimé).
+    if (!bestBuy && historyFallback) {
+      for (const loc of PRODUCTION_LOCATIONS) {
+        const avg = estimatedPrice(item, loc);
+        if (avg == null) continue;
+        const price = mode === 'instant' ? avg : (avg + 1) * (1 + ORDER_FEE);
+        if (!bestBuy || price < bestBuy.price) bestBuy = { loc, price, ageH: 0, estimated: true };
+      }
+    }
     const sells: SellCandidate[] = [];
+    const estimatedSells: SellCandidate[] = [];
     for (const loc of SELL_LOCATIONS) {
-      const q = sellQuote(item.prices[loc], mode, now, maxPriceAgeH);
+      const q = sellQuote(item.prices?.[loc], mode, now, maxPriceAgeH);
       if (q) sells.push({ loc, price: q.price, ageH: q.ageH, net: unitRevenue(q.price, settings) });
+      else if (historyFallback) {
+        // Repli : pas de prix de vente récent valide dans ce lieu → moyenne 7 jours du même lieu.
+        const avg = estimatedPrice(item, loc);
+        if (avg != null) estimatedSells.push({ loc, price: avg, ageH: 0, net: unitRevenue(avg, settings), estimated: true });
+      }
     }
     sells.sort((a, b) => b.net - a.net);
-    const bmP = item.prices['Black Market'];
+    // Les prix récents restent prioritaires : les estimés ne servent que si aucun récent ne passe les filtres.
+    estimatedSells.sort((a, b) => b.net - a.net);
+    sells.push(...estimatedSells);
+    const bmP = item.prices?.['Black Market'];
     if (bmP && ((bmP.sell ?? 0) > 0 || (bmP.buy ?? 0) > 0)) hasAnyPrice = true;
     const bq = sellQuote(bmP, mode, now, maxPriceAgeH, true);
-    const blackMarket = bq
+    let blackMarket: SellCandidate | null = bq
       ? { loc: 'Black Market' as Location, price: bq.price, ageH: bq.ageH, net: unitRevenue(bq.price, settings, true) }
       : null;
+    if (!blackMarket && historyFallback) {
+      const avg = estimatedPrice(item, 'Black Market');
+      if (avg != null)
+        blackMarket = { loc: 'Black Market', price: avg, ageH: 0, net: unitRevenue(avg, settings, true), estimated: true };
+    }
     index.set(item.id, { item, bestBuy, hasAnyPrice, sells, blackMarket });
   }
   return index;
@@ -119,17 +158,22 @@ export function bestRoute(
   settings: Settings,
   opts: RouteOptions = {},
 ): RouteOutcome {
+  // 0. Recette sans ingrédient : non évaluable (pas de coût réel).
+  if (!recipe.inputs || recipe.inputs.length === 0) return { ok: false, reason: 'missing' };
+
   // 1. Ingrédients
   const buyPrices: number[] = new Array(recipe.inputs.length);
   const buyFrom: Partial<Record<string, Location>> = {};
   let oldestIngredient = 0;
+  let estimated = false;
   for (let i = 0; i < recipe.inputs.length; i++) {
     const inp = recipe.inputs[i];
     const ip = index.get(inp.id);
     if (!ip || !ip.bestBuy) return { ok: false, reason: ip?.hasAnyPrice ? 'stale' : 'missing' };
     buyPrices[i] = ip.bestBuy.price;
     buyFrom[inp.id] = ip.bestBuy.loc;
-    if (ip.bestBuy.ageH > oldestIngredient) oldestIngredient = ip.bestBuy.ageH;
+    if (ip.bestBuy.estimated) estimated = true;
+    else if (ip.bestBuy.ageH > oldestIngredient) oldestIngredient = ip.bestBuy.ageH;
   }
 
   // 2. Sortie
@@ -177,8 +221,14 @@ export function bestRoute(
   if (!(unitProfit > 0)) return { ok: false, reason: 'unprofitable' };
 
   const flags: RouteResult['flags'] = [];
-  const oldest = Math.max(oldestIngredient, chosen.ageH);
+  if (chosen.estimated) estimated = true;
+  // L'âge d'un prix estimé n'a pas de sens : seuls les prix récents comptent pour l'âge.
+  const oldest = Math.max(oldestIngredient, chosen.estimated ? 0 : chosen.ageH);
   let c = confidence(oldest, settings.maxPriceAgeH);
+  if (estimated) {
+    c = Math.min(c, ESTIMATED_MAX_CONFIDENCE);
+    flags.push('estimated');
+  }
   if (isThinHistory(out.item, chosen.loc)) {
     c = Math.min(c, 0.5);
     flags.push('thin-history');

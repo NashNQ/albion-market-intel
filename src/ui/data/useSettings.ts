@@ -5,7 +5,12 @@ export const SETTINGS_KEY = 'ami.settings.v1';
 
 const num = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v);
 
-/** Fusionne une entrée arbitraire avec les défauts ; toute valeur invalide ou hors bornes revient au défaut. */
+const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
+
+/**
+ * Fusionne une entrée arbitraire avec les défauts. Un nombre hors bornes est ramené à la borne
+ * la plus proche ; une valeur absente, non numérique ou NaN revient au défaut.
+ */
 export function sanitizeSettings(raw: unknown): Settings {
   const s: Settings = { ...DEFAULT_SETTINGS };
   if (!raw || typeof raw !== 'object') return s;
@@ -13,12 +18,13 @@ export function sanitizeSettings(raw: unknown): Settings {
   if (typeof r.premium === 'boolean') s.premium = r.premium;
   if (typeof r.focus === 'boolean') s.focus = r.focus;
   if (r.dailyBonus === 0 || r.dailyBonus === 0.1 || r.dailyBonus === 0.2) s.dailyBonus = r.dailyBonus;
-  if (num(r.stationFee) && r.stationFee >= 0 && r.stationFee <= 5000) s.stationFee = r.stationFee;
+  if (num(r.stationFee)) s.stationFee = clamp(r.stationFee, 0, 5000);
   if (r.mode === 'instant' || r.mode === 'orders') s.mode = r.mode;
-  if (num(r.marketShare) && r.marketShare >= 0 && r.marketShare <= 1) s.marketShare = r.marketShare;
-  if (num(r.dailyCap) && r.dailyCap >= 1) s.dailyCap = r.dailyCap;
-  if (num(r.maxPriceAgeH) && r.maxPriceAgeH >= 1 && r.maxPriceAgeH <= 48) s.maxPriceAgeH = r.maxPriceAgeH;
-  if (num(r.minVolume) && r.minVolume >= 0) s.minVolume = r.minVolume;
+  if (num(r.marketShare)) s.marketShare = clamp(r.marketShare, 0, 1);
+  if (num(r.dailyCap)) s.dailyCap = Math.max(1, r.dailyCap);
+  if (num(r.maxPriceAgeH)) s.maxPriceAgeH = clamp(r.maxPriceAgeH, 1, 48);
+  if (num(r.minVolume)) s.minVolume = Math.max(0, r.minVolume);
+  if (typeof r.historyFallback === 'boolean') s.historyFallback = r.historyFallback;
   return s;
 }
 

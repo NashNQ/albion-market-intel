@@ -25,7 +25,26 @@ async function getJson<T>(url: string): Promise<T> {
   return (await res.json()) as T;
 }
 
-const parseDate = (iso: string | undefined | null): Date | null => {
+/** Écarte les entrées sans id et complète les champs manquants (prices, volumes…) par des objets vides. */
+export function normalizeItems(items: unknown[]): MarketSnapshot['items'] {
+  const out: MarketSnapshot['items'] = [];
+  for (const raw of items) {
+    if (!raw || typeof raw !== 'object') continue;
+    const it = raw as Partial<MarketSnapshot['items'][number]>;
+    if (typeof it.id !== 'string' || it.id === '') continue;
+    const obj = (v: unknown) => (v && typeof v === 'object' && !Array.isArray(v) ? v : {});
+    out.push({
+      id: it.id,
+      prices: obj(it.prices),
+      volume7d: obj(it.volume7d),
+      avgPrice7d: obj(it.avgPrice7d),
+      historyDays: obj(it.historyDays),
+    });
+  }
+  return out;
+}
+
+const parseDate =(iso: string | undefined | null): Date | null => {
   if (!iso) return null;
   const d = new Date(iso);
   return Number.isNaN(d.getTime()) ? null : d;
@@ -64,6 +83,7 @@ export function useMarket(): UseMarket {
       if (!alive.current) return;
       const incoming = parseDate(s?.updatedAt);
       if (!incoming || !Array.isArray(s.items)) throw new Error('market.json invalide');
+      s.items = normalizeItems(s.items);
       const current = parseDate(snapRef.current?.updatedAt);
       // On ignore une réponse plus ancienne (ou identique) que la copie en mémoire.
       if (!current || incoming.getTime() > current.getTime()) {

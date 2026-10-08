@@ -9,9 +9,9 @@ import {
 } from '@tanstack/react-table';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import type { ItemMeta, RouteResult } from '../../types';
-import { fmtAgeH, fmtInt, fmtSilver, itemHref } from '../format';
+import { fmtAgeH, fmtInt, fmtSilver, itemHref, subcatLabel } from '../format';
 import { ItemIcon } from './ItemIcon';
-import { ConfidenceBar, RouteCell } from './Route';
+import { ConfidenceBar, RouteCell, routeText } from './Route';
 
 export const VIRTUAL_THRESHOLD = 200;
 const ROW_H = 44;
@@ -37,14 +37,28 @@ export function RouteTable({ rows, metaById, variant, caption }: Props) {
         header: 'Objet',
         accessorFn: (r) => nameOf(r, metaById),
         sortingFn: (a, b) => String(a.getValue('name')).localeCompare(String(b.getValue('name')), 'fr'),
+        // Colonne texte : premier clic = ordre alphabétique croissant.
+        sortDescFirst: false,
         cell: ({ row }) => {
           const r = row.original;
           const name = nameOf(r, metaById);
           return (
-            <a className="item-link" href={itemHref(r.recipe.outputId)}>
-              <ItemIcon id={r.recipe.outputId} name={name} size={28} />
-              <span className="item-name">{name}</span>
-            </a>
+            <span className="item-cell">
+              <a className="item-link" href={itemHref(r.recipe.outputId)}>
+                <ItemIcon id={r.recipe.outputId} name={name} size={28} />
+                <span className="item-name">{name}</span>
+              </a>
+              <span className="item-line">
+                <span className="item-cat">{subcatLabel(r.recipe.subcategory)}</span>
+                {r.recipe.variant && (
+                  <span className="item-variant" title={`Recette alternative à partir de ${metaById.get(r.recipe.variant)?.nameFr ?? r.recipe.variant}`}>
+                    {` · ×${r.recipe.outputQty}`}
+                  </span>
+                )}
+                {/* Mobile : la colonne route est masquée, la route s'affiche ici. */}
+                <span className="route-mini">{` · ${routeText(r)}`}</span>
+              </span>
+            </span>
           );
         },
         meta: { cls: 'c-name' },
@@ -80,14 +94,16 @@ export function RouteTable({ rows, metaById, variant, caption }: Props) {
         {
           id: 'volume',
           header: 'Volume/jour',
-          accessorFn: (r) => r.volume ?? -1,
+          accessorFn: (r) => r.volume ?? undefined,
+          sortUndefined: 'last',
           cell: ({ row }) => fmtInt(row.original.volume),
           meta: { cls: 'c-vol num secondary', title: 'Volume médian vendu par jour sur 7 jours au lieu de vente' },
         },
         {
           id: 'q',
           header: 'Q',
-          accessorFn: (r) => r.q ?? -1,
+          accessorFn: (r) => r.q ?? undefined,
+          sortUndefined: 'last',
           cell: ({ row }) => fmtInt(row.original.q),
           meta: { cls: 'c-q num secondary', title: 'Quantité écoulable par jour' },
         },
@@ -104,7 +120,8 @@ export function RouteTable({ rows, metaById, variant, caption }: Props) {
       cols.push({
         id: 'score',
         header: 'Score',
-        accessorFn: (r) => r.score ?? -Infinity,
+        accessorFn: (r) => r.score ?? undefined,
+        sortUndefined: 'last',
         cell: ({ row }) => <strong className="score">{fmtInt(row.original.score)}</strong>,
         meta: { cls: 'c-score num', title: 'Profit × Q × C : argent espéré par jour' },
       });
@@ -129,8 +146,8 @@ export function RouteTable({ rows, metaById, variant, caption }: Props) {
     onSortingChange: setSorting,
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
-    sortDescFirst: true,
-    getRowId: (r, i) => `${r.recipe.outputId}-${r.sellAt}-${i}`,
+    sortDescFirst: true, // colonnes numériques : premier clic = décroissant
+    getRowId: (r, i) => `${r.recipe.outputId}${r.recipe.variant ? '|' + r.recipe.variant : ''}-${r.sellAt}-${i}`,
   });
 
   const tableRows = table.getRowModel().rows;
