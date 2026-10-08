@@ -285,7 +285,7 @@ describe('route (fixture 3 lieux)', () => {
     expect(bm.sellAt).toBe('Black Market');
     expect(bm.unitRevenue).toBeCloseTo(3500 * 0.96, 9);
     expect(bm.score).toBeNull();
-    expect(bm.volume).toBeNull();
+    expect(bm.volume).toBeGreaterThan(0); // le BM exige au moins une vente sur 7 j
     expect(bm.q).toBeNull();
     expect(bm.flags).toContain('red-zone');
   });

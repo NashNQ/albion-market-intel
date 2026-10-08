@@ -134,7 +134,7 @@ describe('client HTTP : retry', () => {
     let n = 0;
     const fetch: FetchLike = async (_url, init) => {
       n++;
-      expect((init?.headers as Record<string, string>)['User-Agent']).toBe('albion-market-intel (+https://github.com)');
+      expect((init?.headers as Record<string, string>)['User-Agent']).toBe('albion-market-intel (+https://github.com/NashNQ/albion-market-intel)');
       expect((init?.headers as Record<string, string>)['Accept-Encoding']).toBe('gzip');
       return n <= 2 ? jsonResponse({}, 429) : jsonResponse([{ ok: true }]);
     };

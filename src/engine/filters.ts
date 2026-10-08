@@ -24,6 +24,12 @@ export function isSuspect(sellPrice: number, item: MarketItem, loc: Location): b
   return avg != null && avg > 0 && sellPrice > SUSPECT_RATIO * avg;
 }
 
+/** Prix d'achat anormalement bas (< 1/3 de la moyenne 7 j) : ordre piège ou erreur de collecte. */
+export function isSuspectLow(buyPrice: number, item: MarketItem, loc: Location): boolean {
+  const avg = item.avgPrice7d?.[loc];
+  return avg != null && avg > 0 && buyPrice * SUSPECT_RATIO < avg;
+}
+
 /** Volume 7 j au lieu de vente, ou null si inconnu. */
 export function volumeAt(item: MarketItem, loc: Location): number | null {
   const v = item.volume7d?.[loc];

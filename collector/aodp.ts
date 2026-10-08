@@ -3,7 +3,7 @@
 import { LOCATIONS, type Location, type PricePoint } from '../src/types';
 
 export const AODP_BASE = 'https://europe.albion-online-data.com';
-export const USER_AGENT = 'albion-market-intel (+https://github.com)';
+export const USER_AGENT = 'albion-market-intel (+https://github.com/NashNQ/albion-market-intel)';
 export const MAX_URL_LENGTH = 4000;
 export const HISTORY_BATCH_SIZE = 60;
 

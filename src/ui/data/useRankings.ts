@@ -16,7 +16,11 @@ export function useRankings(
   return useMemo(() => {
     if (!snapshot || !recipes) return { rankings: null, computeMs: 0 };
     const t0 = performance.now();
-    const rankings = rankAll(snapshot, recipes, settings, new Date());
+    // Ancrage : si la collecte a du retard, on évalue les prix à l'heure de la dernière collecte
+    // (+30 min) pour que les classements ne se vident pas ; le bandeau signale le retard réel.
+    const anchor = Date.parse(snapshot.updatedAt);
+    const nowMs = Number.isFinite(anchor) ? Math.min(Date.now(), anchor + 30 * 60_000) : Date.now();
+    const rankings = rankAll(snapshot, recipes, settings, new Date(nowMs));
     return { rankings, computeMs: performance.now() - t0 };
   }, [snapshot, recipes, settings]);
 }

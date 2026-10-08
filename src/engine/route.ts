@@ -12,7 +12,7 @@ import {
 } from '../types';
 import { recipeRrr } from './rrr';
 import { buyQuote, sellQuote, unitCost, unitRevenue } from './cost';
-import { confidence, hasEnoughVolume, isSuspect, isThinHistory, liquidity, volumeAt } from './filters';
+import { confidence, hasEnoughVolume, isSuspect, isSuspectLow, isThinHistory, liquidity, volumeAt } from './filters';
 import { score } from './score';
 
 export interface LocatedQuote {
@@ -53,6 +53,7 @@ export function buildPriceIndex(snapshot: MarketSnapshot, settings: Settings, no
       if (!p) continue;
       if ((p.sell ?? 0) > 0 || (p.buy ?? 0) > 0) hasAnyPrice = true;
       const q = buyQuote(p, mode, now, maxPriceAgeH);
+      if (q && isSuspectLow(q.price, item, loc)) continue; // ordre piège très bas
       if (q && (!bestBuy || q.price < bestBuy.price)) bestBuy = { loc, price: q.price, ageH: q.ageH };
     }
     const sells: SellCandidate[] = [];
@@ -155,14 +156,18 @@ export function bestRoute(
       firstFailure ??= 'suspect';
       continue;
     }
+    const v = volumeAt(out.item, c.loc);
     if (!opts.blackMarket) {
-      const v = volumeAt(out.item, c.loc);
       if (!hasEnoughVolume(v, settings)) {
         firstFailure ??= 'lowVolume';
         continue;
       }
-      volume = v;
+    } else if (v == null || v <= 0) {
+      // Black Market : aucune vente observée sur 7 jours → pas de débouché réel.
+      firstFailure ??= 'lowVolume';
+      continue;
     }
+    volume = v;
     chosen = c;
     break;
   }
@@ -195,7 +200,7 @@ export function bestRoute(
       unitCost: cost,
       unitRevenue: chosen.net,
       unitProfit,
-      volume: opts.blackMarket ? null : volume,
+      volume,
       q,
       confidence: c,
       score: q == null ? null : score(unitProfit, q, c),

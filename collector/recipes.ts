@@ -138,7 +138,7 @@ export function buildRecipesFile(
     if (tier < 4 || tier > 8) continue;
     const common = {
       kind: 'crafting' as const,
-      bonusKey: String(it['@craftingcategory'] ?? ''),
+      bonusKey: String(it['@craftingcategory'] || it['@shopsubcategory1'] || ''),
       category: String(it['@shopcategory'] ?? ''),
       subcategory: String(it['@shopsubcategory1'] ?? ''),
       tier,
