@@ -1,0 +1,71 @@
+name: Collect prices
+
+on:
+  schedule:
+    - cron: '7,22,37,52 * * * *'
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: data-branch
+  cancel-in-progress: false
+
+jobs:
+  prices:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+
+      - name: Récupérer la branche data (si elle existe)
+        run: bash collector/fetch-prev.sh prev
+
+      - name: Recettes (si absentes)
+        run: |
+          if [ ! -f prev/recipes.json ]; then
+            pnpm collect:recipes
+          else
+            echo "prev/recipes.json présent, pas de régénération"
+          fi
+
+      - name: Prix
+        run: pnpm collect:prices --prev prev
+
+      - name: Volumes (si absents ou plus vieux que 6 h)
+        run: |
+          if node -e '
+            const fs = require("fs");
+            const p = "prev/volumes-latest.json";
+            if (!fs.existsSync(p)) process.exit(0);
+            try {
+              const t = Date.parse(JSON.parse(fs.readFileSync(p, "utf8")).updatedAt);
+              process.exit(!Number.isFinite(t) || Date.now() - t > 6 * 3600e3 ? 0 : 1);
+            } catch { process.exit(0); }
+          '; then
+            pnpm collect:volumes --prev prev || echo "::warning::Cycle volumes en échec, volumes précédents conservés"
+          else
+            echo "Volumes récents (< 6 h), cycle prix seul"
+          fi
+
+      - name: Fusion market.json
+        run: pnpm exec tsx collector/store.ts --prev prev
+
+      - name: Publier sur la branche data
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          bash collector/publish.sh out "data: prices $(date -u +%Y-%m-%dT%H:%MZ)"

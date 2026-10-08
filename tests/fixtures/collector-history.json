@@ -1,0 +1,28 @@
+[
+  {"location":"Martlock","item_id":"T4_PLANKS","quality":1,"data":[
+    {"item_count":100,"avg_price":330,"timestamp":"2026-09-30T00:00:00"},
+    {"item_count":10,"avg_price":300,"timestamp":"2026-10-01T00:00:00"},
+    {"item_count":20,"avg_price":310,"timestamp":"2026-10-02T00:00:00"},
+    {"item_count":30,"avg_price":320,"timestamp":"2026-10-04T00:00:00"},
+    {"item_count":40,"avg_price":340,"timestamp":"2026-10-06T00:00:00"},
+    {"item_count":9999,"avg_price":999,"timestamp":"2026-10-08T00:00:00"}
+  ]},
+  {"location":"3005","item_id":"T4_PLANKS","quality":1,"data":[
+    {"item_count":50,"avg_price":350,"timestamp":"2026-10-05T00:00:00"}
+  ]},
+  {"location":"3013-Auction2","item_id":"T4_PLANKS","quality":1,"data":[
+    {"item_count":150,"avg_price":370,"timestamp":"2026-10-05T00:00:00"}
+  ]},
+  {"location":"9999-Mystery","item_id":"T4_PLANKS","quality":1,"data":[
+    {"item_count":5,"avg_price":1,"timestamp":"2026-10-05T00:00:00"}
+  ]},
+  {"location":"5003","item_id":"T5_PLANKS","quality":1,"data":[
+    {"item_count":7,"avg_price":1000,"timestamp":"2026-10-01T00:00:00"},
+    {"item_count":7,"avg_price":1000,"timestamp":"2026-10-02T00:00:00"},
+    {"item_count":7,"avg_price":1000,"timestamp":"2026-10-03T00:00:00"},
+    {"item_count":7,"avg_price":1000,"timestamp":"2026-10-04T00:00:00"},
+    {"item_count":7,"avg_price":1000,"timestamp":"2026-10-05T00:00:00"},
+    {"item_count":7,"avg_price":1000,"timestamp":"2026-10-06T00:00:00"},
+    {"item_count":7,"avg_price":1000,"timestamp":"2026-10-07T00:00:00"}
+  ]}
+]

@@ -1,0 +1,59 @@
+{
+  "now": "2026-10-08T12:00:00Z",
+  "snapshot": {
+    "updatedAt": "2026-10-08T11:55:00Z",
+    "volumesUpdatedAt": "2026-10-08T00:00:00Z",
+    "items": [
+      {
+        "id": "T4_LEATHER",
+        "prices": {
+          "Martlock":  { "sell": 120, "sellAt": "2026-10-08T11:30:00Z", "buy": 100, "buyAt": "2026-10-08T11:30:00Z" },
+          "Brecilien": { "sell": 90,  "sellAt": "2026-10-08T11:30:00Z", "buy": 70,  "buyAt": "2026-10-08T11:30:00Z" },
+          "Caerleon":  { "sell": 110, "sellAt": "2026-10-08T11:30:00Z", "buy": 60,  "buyAt": "2026-10-08T11:30:00Z" }
+        },
+        "volume7d": {}, "avgPrice7d": {}, "historyDays": {}
+      },
+      {
+        "id": "T4_CLOTH",
+        "prices": {
+          "Martlock":  { "sell": 50, "sellAt": "2026-10-08T11:30:00Z", "buy": 40, "buyAt": "2026-10-08T11:30:00Z" },
+          "Brecilien": { "sell": 80, "sellAt": "2026-10-08T11:30:00Z", "buy": 30, "buyAt": "2026-10-08T11:30:00Z" },
+          "Caerleon":  { "sell": 60, "sellAt": "2026-10-08T11:30:00Z", "buy": 45, "buyAt": "2026-10-08T11:30:00Z" }
+        },
+        "volume7d": {}, "avgPrice7d": {}, "historyDays": {}
+      },
+      {
+        "id": "T4_BAG",
+        "prices": {
+          "Martlock":     { "sell": 2600, "sellAt": "2026-10-08T11:00:00Z", "buy": 2000, "buyAt": "2026-10-08T11:00:00Z" },
+          "Brecilien":    { "sell": 2500, "sellAt": "2026-10-08T11:00:00Z", "buy": 2100, "buyAt": "2026-10-08T11:00:00Z" },
+          "Caerleon":     { "sell": 3000, "sellAt": "2026-10-08T11:00:00Z", "buy": 2400, "buyAt": "2026-10-08T11:00:00Z" },
+          "Black Market": { "sell": null, "sellAt": null, "buy": 3500, "buyAt": "2026-10-08T11:00:00Z" }
+        },
+        "volume7d": { "Martlock": 100, "Brecilien": 50, "Caerleon": 200, "Black Market": 80 },
+        "avgPrice7d": { "Martlock": 2500, "Brecilien": 2400, "Caerleon": 2800, "Black Market": 3400 },
+        "historyDays": { "Martlock": 7, "Brecilien": 7, "Caerleon": 7, "Black Market": 7 }
+      }
+    ]
+  },
+  "recipes": {
+    "generatedAt": "2026-10-08T00:00:00Z",
+    "meta": [],
+    "bonuses": {
+      "Martlock":  { "refiningBase": 0.18, "craftingBase": 0.18, "modifiers": { "hide": 0.4 } },
+      "Brecilien": { "refiningBase": 0.18, "craftingBase": 0.18, "modifiers": { "bag": 0.15 } },
+      "Caerleon":  { "refiningBase": 0.18, "craftingBase": 0.18, "modifiers": {} }
+    },
+    "recipes": [
+      {
+        "outputId": "T4_BAG", "outputQty": 1,
+        "inputs": [
+          { "id": "T4_LEATHER", "qty": 8, "returnable": true },
+          { "id": "T4_CLOTH", "qty": 8, "returnable": true }
+        ],
+        "itemValue": 256, "kind": "crafting", "bonusKey": "bag",
+        "category": "accessories", "subcategory": "bag", "tier": 4, "enchant": 0
+      }
+    ]
+  }
+}

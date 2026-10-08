@@ -1,0 +1,53 @@
+name: Regenerate recipes
+
+on:
+  schedule:
+    - cron: '31 3 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: data-branch
+  cancel-in-progress: false
+
+jobs:
+  recipes:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+
+      - name: Récupérer la branche data (si elle existe)
+        run: bash collector/fetch-prev.sh prev
+
+      - name: Recettes
+        run: pnpm collect:recipes
+
+      - name: Fusion market.json (si des prix existent)
+        run: |
+          if [ -f prev/prices-latest.json ] || [ -f out/prices-latest.json ]; then
+            pnpm exec tsx collector/store.ts --prev prev
+          else
+            echo "Pas encore de prix : publication des recettes seules"
+          fi
+
+      - name: Publier sur la branche data
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          for f in market.json volumes-latest.json prices-latest.json; do
+            [ -f "out/$f" ] || [ ! -f "prev/$f" ] || cp "prev/$f" "out/$f"
+          done
+          bash collector/publish.sh out "data: recipes $(date -u +%Y-%m-%dT%H:%MZ)"

@@ -1,0 +1,51 @@
+name: Collect volumes
+
+on:
+  schedule:
+    - cron: '13 */6 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: data-branch
+  cancel-in-progress: false
+
+jobs:
+  volumes:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+
+      - name: Récupérer la branche data (si elle existe)
+        run: bash collector/fetch-prev.sh prev
+
+      - name: Recettes (si absentes)
+        run: |
+          if [ ! -f prev/recipes.json ]; then
+            pnpm collect:recipes
+          fi
+
+      - name: Volumes
+        run: pnpm collect:volumes --prev prev
+
+      - name: Fusion market.json
+        run: pnpm exec tsx collector/store.ts --prev prev
+
+      - name: Publier sur la branche data
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          bash collector/publish.sh out "data: volumes $(date -u +%Y-%m-%dT%H:%MZ)"

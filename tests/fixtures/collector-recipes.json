@@ -1,0 +1,52 @@
+{
+  "generatedAt": "2026-10-05T03:31:00.000Z",
+  "recipes": [
+    {
+      "outputId": "T5_PLANKS",
+      "outputQty": 1,
+      "inputs": [
+        { "id": "T5_WOOD", "qty": 3, "returnable": true },
+        { "id": "T4_PLANKS", "qty": 1, "returnable": true }
+      ],
+      "itemValue": 64,
+      "kind": "refining",
+      "bonusKey": "wood",
+      "category": "resources",
+      "subcategory": "planks",
+      "tier": 5,
+      "enchant": 0
+    },
+    {
+      "outputId": "T4_PLANKS",
+      "outputQty": 1,
+      "inputs": [
+        { "id": "T4_WOOD", "qty": 2, "returnable": true },
+        { "id": "T3_PLANKS", "qty": 1, "returnable": true }
+      ],
+      "itemValue": 32,
+      "kind": "refining",
+      "bonusKey": "wood",
+      "category": "resources",
+      "subcategory": "planks",
+      "tier": 4,
+      "enchant": 0
+    },
+    {
+      "outputId": "T4_BAG",
+      "outputQty": 1,
+      "inputs": [
+        { "id": "T4_CLOTH", "qty": 8, "returnable": true },
+        { "id": "T4_LEATHER", "qty": 8, "returnable": true }
+      ],
+      "itemValue": 256,
+      "kind": "crafting",
+      "bonusKey": "bag",
+      "category": "accessories",
+      "subcategory": "bag",
+      "tier": 4,
+      "enchant": 0
+    }
+  ],
+  "meta": [],
+  "bonuses": {}
+}
