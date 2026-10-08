@@ -20,7 +20,14 @@ const DEFS: Def[] = [
   { key: 'premiumGrowthMultiplier', label: 'Croissance animale avec premium (×)', help: 'Le premium divise par 2 le temps de croissance des animaux (158 400 s → 22 h).', step: 0.05, min: 0.05, max: 10 },
   { key: 'premiumProductMultiplier', label: 'Œufs et lait avec premium (×)', help: 'Hypothèse : pas de doublement de la production des adultes (×1).', step: 0.1, min: 0, max: 10 },
   { key: 'focusHalvingsAtMaxSpec', label: 'Divisions du focus à spécialisation 100', help: 'Coût = focus × 0,5^(n·spec/100) ; n = 3 → 1 000 devient 125 à spécialisation 100.', step: 0.5, min: 0, max: 10 },
-  { key: 'cropCyclesPerDay', label: 'Récoltes par jour', help: 'Croissance de 22 h (items.xml @growtime 79 200 s) : une récolte par jour en pratique.', step: 0.1, min: 0.01, max: 24 },
+  {
+    key: 'cropCyclesPerDay',
+    label: 'Passages à la ferme par jour',
+    help: 'Un cycle n’est récolté qu’au premier passage après sa fin : cycles/jour = passages ÷ ⌈durée × passages / 24 h⌉. 1 passage : cultures (22 h) et animaux premium (22 h) → 1/jour, animaux sans premium (44 h) → 0,5/jour. 24/22 ≈ 1,09 : récolte dès la fin de chaque cycle.',
+    step: 0.1,
+    min: 0.01,
+    max: 24,
+  },
   { key: 'maxVolumeShare', label: 'Part maximale du volume 7 j', help: 'Avertissement du planificateur si la vente quotidienne dépasse cette part du volume médian.', step: 1, min: 0, max: 100, pct: true },
 ];
 

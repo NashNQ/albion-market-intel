@@ -422,7 +422,8 @@
   max-width: 60ch;
 }
 .mk-lead-farm {
-  grid-template-rows: 1fr;
+  /* Le texte se pose en bas de la carte, aligné sur le corps de « Mes routes » (pas de vide sous le texte). */
+  grid-template-rows: auto;
   background: var(--mk-wash);
   border-color: color-mix(in srgb, var(--accent) 30%, var(--line));
   align-content: end;
@@ -597,6 +598,12 @@
 }
 .mk-cs {
   scroll-margin-top: 110px;
+}
+/* En mobile, l'en-tête collant passe sur deux lignes (~125 px) : on garde le titre visible après un saut. */
+@media (max-width: 640px) {
+  .mk-cs {
+    scroll-margin-top: 148px;
+  }
 }
 .mk-cs:focus {
   outline: none;

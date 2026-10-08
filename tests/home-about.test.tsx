@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import type { ReactElement } from 'react';
 import { afterEach, describe, expect, it } from 'vitest';
-import { cleanup, render, screen, within } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { DEFAULT_SETTINGS, type MarketSnapshot, type Recipe, type RecipesFile, type RouteResult } from '../src/types';
 import { AppDataContext, buildIndexes, type AppData, type RankingsView } from '../src/ui/context';
 import { HomePage } from '../src/ui/pages/Home';
@@ -175,7 +175,7 @@ describe('AboutPage', () => {
       expect(screen.getByRole('heading', { level: 2, name: t })).toBeTruthy();
     }
     expect(screen.getByText(/−25 M/)).toBeTruthy();
-    expect(screen.getByText(/300 crédits par mois/)).toBeTruthy();
+    expect(screen.getByText(/plan gratuit de Netlify limite/)).toBeTruthy();
   });
 
   it('contient le schéma d’architecture en SVG accessible', () => {
@@ -191,6 +191,23 @@ describe('AboutPage', () => {
     expect(screen.getByRole('link', { name: 'Voir le dépôt sur GitHub' }).getAttribute('href')).toBe(
       'https://github.com/NashNQ/albion-market-intel',
     );
+  });
+
+  it('le sommaire saute vers la section sans quitter la route #/a-propos', () => {
+    window.location.hash = '#/a-propos';
+    renderWith(<AboutPage />, makeData());
+    const nav = screen.getByRole('navigation', { name: /Sommaire/ });
+    const link = within(nav).getByRole('link', { name: 'Ce que l’audit a trouvé' });
+    const notPrevented = fireEvent.click(link);
+    expect(notPrevented).toBe(false);
+    expect(window.location.hash).toBe('#/a-propos');
+    expect(document.activeElement?.id).toBe('cs-audit');
+  });
+
+  it('mentionne le domaine Fermes et ses hypothèses exposées', () => {
+    renderWith(<AboutPage />, makeData());
+    expect(screen.getAllByText(/Fermes/).length).toBeGreaterThan(0);
+    expect(screen.getByText(/panneau « Hypothèses »/)).toBeTruthy();
   });
 
   it('se rend pendant le chargement', () => {

@@ -20,7 +20,11 @@ export interface FarmAssumptions {
   premiumProductMultiplier: number;
   /** Nombre de divisions par 2 du coût en focus à spécialisation 100 (3 → ÷8). */
   focusHalvingsAtMaxSpec: number;
-  /** Récoltes par jour et par emplacement (cultures/herbes). */
+  /**
+   * Passages à la ferme par jour (récolte, collecte, abattage). Un cycle de durée T n'est récolté qu'au premier
+   * passage après sa fin : cycles/jour = passages ÷ ⌈T × passages / 24 h⌉ (cultures 22 h, animaux 44 h ou 22 h).
+   * Nom historique conservé pour la compatibilité du stockage local.
+   */
   cropCyclesPerDay: number;
   /** Seuil d'avertissement : part du volume médian 7 j vendue par jour. */
   maxVolumeShare: number;
@@ -35,6 +39,23 @@ export const DEFAULT_FARM_ASSUMPTIONS: FarmAssumptions = {
   cropCyclesPerDay: 1,
   maxVolumeShare: 0.1,
 };
+
+/**
+ * Cycles complets réellement récoltés par jour pour un cycle de `cycleSeconds` et `visitsPerDay` passages
+ * régulièrement espacés : on ne récolte qu'au premier passage après la fin du cycle. 0 si entrée invalide.
+ */
+export function harvestsPerDay(cycleSeconds: number, visitsPerDay: number): number {
+  if (!(cycleSeconds > 0) || !(visitsPerDay > 0) || !Number.isFinite(cycleSeconds) || !Number.isFinite(visitsPerDay)) return 0;
+  // Tolérance : 79 200 s × 24/22 passages = exactement 1 intervalle, sans arrondi flottant vers 2.
+  const intervals = Math.max(1, Math.ceil((cycleSeconds * visitsPerDay) / 86400 - 1e-9));
+  return visitsPerDay / intervals;
+}
+
+/** Probabilité de retour (graine, petit) : chance de base + bonus d'arrosage/soin, plafonnée à 1 (au plus 1 par emplacement). */
+export function returnChance(base: number, focusBonus: number, focused: boolean): number {
+  const v = (Number.isFinite(base) ? base : 0) + (focused && Number.isFinite(focusBonus) ? focusBonus : 0);
+  return Math.min(1, Math.max(0, v));
+}
 
 /** Coût en focus d'une action à une spécialisation donnée (0–100) : focusCost × 0,5^(k·spec/100), arrondi. */
 export function focusCostAtSpec(focusCost: number, spec: number, a: Pick<FarmAssumptions, 'focusHalvingsAtMaxSpec'> = DEFAULT_FARM_ASSUMPTIONS): number {
@@ -136,8 +157,8 @@ export const FARM_FLAG_LABEL: Record<FarmFlag, { short: string; long: string }> 
   'red-zone': { short: 'Zone rouge', long: 'Vente à Caerleon : trajet en zone rouge (risque de perte totale).' },
   mists: { short: 'Brumes', long: 'Vente à Brecilien, accessible uniquement par les Brumes.' },
   'surplus-unpriced': {
-    short: 'Excédent non valorisé',
-    long: 'Graines ou petits excédentaires sans prix de vente valide : comptés à 0.',
+    short: 'Sous-produit non valorisé',
+    long: 'Graines ou petits excédentaires, ou vers, sans prix de vente valide : comptés à 0 (profit sous-estimé).',
   },
 };
 
@@ -216,11 +237,11 @@ function finishFlags(ctx: FarmContext, mainId: string, loc: Location | null, t: 
 export function evaluateCrop(c: FarmCrop, focused: boolean, ctx: FarmContext): FarmEval {
   const a = ctx.assumptions;
   const slots = a.slotsPerPlot;
-  const cycles = a.cropCyclesPerDay;
+  const cycles = harvestsPerDay(c.growSeconds > 0 ? c.growSeconds : 79200, a.cropCyclesPerDay);
   const bonus = cityBonusFor(ctx, c.seedId);
   const premMul = ctx.settings.premium ? a.premiumYieldMultiplier : 1;
   const R = c.harvestAvg * premMul * (1 + bonus);
-  const S = c.seedChance + (focused ? c.focusBonus : 0);
+  const S = returnChance(c.seedChance, c.focusBonus, focused);
   const dS = S - 1;
   const t = new Tracker();
   const flags: FarmFlag[] = [];
@@ -256,7 +277,7 @@ export function evaluateCrop(c: FarmCrop, focused: boolean, ctx: FarmContext): F
   });
   steps.push({
     label: 'Graines récupérées',
-    formula: `S = ${fmt(c.seedChance, 4)}${focused ? ` + ${fmt(c.focusBonus, 4)} (arrosage)` : ''} ; ΔS = S − 1`,
+    formula: `S = ${focused ? 'min(1 ; ' : ''}${fmt(c.seedChance, 4)}${focused ? ` + ${fmt(c.focusBonus, 4)} (arrosage))` : ''} ; ΔS = S − 1`,
     value: `S = ${fmt(S, 4)} ; ΔS = ${fmt(dS, 4)}`,
   });
 
@@ -280,7 +301,7 @@ export function evaluateCrop(c: FarmCrop, focused: boolean, ctx: FarmContext): F
       t.use(worm);
       wormVal = c.wormChance * worm.net;
       sells.push({ id: c.wormId, qty: c.wormChance * slots * cycles, loc: worm.loc as Location, unitPrice: worm.net });
-    }
+    } else flags.push('surplus-unpriced');
     steps.push({
       label: 'Vers',
       formula: worm ? `${fmt(c.wormChance)} × ${fmt(worm.net)} (${worm.loc})` : `${fmt(c.wormChance)} × prix absent → compté 0`,
@@ -316,11 +337,15 @@ export function evaluateCrop(c: FarmCrop, focused: boolean, ctx: FarmContext): F
   const V = cropVal + wormVal + seedVal;
   const P = slots * V * cycles;
   steps.push({ label: 'Valeur par emplacement et par récolte', formula: 'V = récolte + vers + graines', value: fmt(V) });
-  steps.push({ label: 'Profit par parcelle et par jour', formula: `${slots} emplacements × V × ${fmt(cycles)} récolte(s)/jour`, value: fmt(P, 0) });
+  steps.push({
+    label: 'Profit par parcelle et par jour',
+    formula: `${slots} emplacements × V × ${fmt(cycles, 3)} récolte(s)/jour (croissance ${fmt((c.growSeconds || 79200) / 3600, 1)} h, ${fmt(a.cropCyclesPerDay)} passage(s)/jour)`,
+    value: fmt(P, 0),
+  });
   if (focused) {
     steps.push({
       label: 'Focus par parcelle et par jour',
-      formula: `${slots} × ${fmt(focusCostAtSpec(c.focusCost, spec, a), 0)} (coût à spécialisation ${fmt(spec, 0)}) × ${fmt(cycles)}`,
+      formula: `${slots} × ${fmt(focusCostAtSpec(c.focusCost, spec, a), 0)} (coût à spécialisation ${fmt(spec, 0)}) × ${fmt(cycles, 3)}`,
       value: fmt(F, 0),
     });
   }
@@ -342,8 +367,9 @@ export function animalStrategies(an: FarmAnimal): AnimalStrategy[] {
 
 /** Unités de nourriture pour `nutrition` points, selon la nourriture (favorite → ×(1 + bonus)). */
 export function foodUnits(an: FarmAnimal, nutrition: number, foodId: string, farming: FarmingData): number {
-  const per = farming.foodNutrition[foodId] ?? 48;
-  const mul = foodId === an.favoriteFood ? 1 + an.favoriteBonus : 1;
+  const raw = farming.foodNutrition[foodId];
+  const per = typeof raw === 'number' && raw > 0 ? raw : 48;
+  const mul = foodId === an.favoriteFood && an.favoriteBonus > 0 ? 1 + an.favoriteBonus : 1;
   return nutrition / (per * mul);
 }
 
@@ -360,7 +386,9 @@ export function evaluateAnimal(an: FarmAnimal, strategy: AnimalStrategy, focused
   const mainId = strategy === 'sell' ? an.grownId : strategy === 'meat' ? an.meatId ?? an.grownId : an.productId ?? an.grownId;
   const bonus = strategy === 'produce' ? cityBonusFor(ctx, an.grownId) : 0;
   const T = an.growSeconds * (ctx.settings.premium ? a.premiumGrowthMultiplier : 1);
-  const cyclesPerDay = strategy === 'produce' ? 1 : 86400 / T;
+  // Cycles réellement récoltés par jour (même règle de passages que les cultures) : 44 h → 0,5 ; 22 h → 1.
+  const cyclesPerDay =
+    strategy === 'produce' ? harvestsPerDay(an.productionSeconds ?? 0, a.cropCyclesPerDay) : harvestsPerDay(T, a.cropCyclesPerDay);
   const F = focused && strategy !== 'produce' ? slots * focusCostAtSpec(an.focusCost, spec, a) * cyclesPerDay : 0;
   const base = {
     activityId: `animal:${an.babyId}:${strategy}`,
@@ -383,9 +411,10 @@ export function evaluateAnimal(an: FarmAnimal, strategy: AnimalStrategy, focused
   const missing: string[] = [];
   if (!out) missing.push(mainId);
   if (!foodQ) missing.push(foodId || 'nourriture');
+  if (!(cyclesPerDay > 0)) missing.push(strategy === 'produce' ? `${an.babyId}:production` : `${an.babyId}:croissance`);
   const babyBuy = buyOf(ctx, an.babyId, an.npcBabyPrice);
   const babySell = sellOf(ctx, an.babyId);
-  const B = an.offspringChance + (focused ? an.focusBonus : 0);
+  const B = returnChance(an.offspringChance, an.focusBonus, focused);
   const dB = B - 1;
   if (strategy !== 'produce' && dB < 0 && !babyBuy) missing.push(an.babyId);
   if (missing.length) {
@@ -400,22 +429,23 @@ export function evaluateAnimal(an: FarmAnimal, strategy: AnimalStrategy, focused
 
   let P: number;
   if (strategy === 'produce') {
-    const units = foodUnits(an, an.adultConsumptionPerDay, foodId, ctx.farming);
+    // Nourriture d'un cycle de production (864 nutrition / 22 h), multipliée par les cycles récoltés par jour.
+    const units = foodUnits(an, (an.adultConsumptionPerDay * an.productionSeconds!) / 86400, foodId, ctx.farming) * cyclesPerDay;
     const prodMul = ctx.settings.premium ? a.premiumProductMultiplier : 1;
-    const perDay = an.productAvg! * prodMul * (1 + bonus) * (86400 / an.productionSeconds!);
+    const perDay = an.productAvg! * prodMul * (1 + bonus) * cyclesPerDay;
     const revenue = perDay * out!.net;
     const foodCost = units * foodPrice;
     const V = revenue - foodCost;
     P = slots * V;
     steps.push({
       label: 'Production par adulte et par jour',
-      formula: `${fmt(an.productAvg!)} × ${fmt(prodMul)} (premium) × (1 + ${fmt(bonus)}) × 86 400 / ${fmt(an.productionSeconds!, 0)} s`,
+      formula: `${fmt(an.productAvg!)} × ${fmt(prodMul)} (premium) × (1 + ${fmt(bonus)}) × ${fmt(cyclesPerDay, 3)} cycle(s)/jour (${fmt(an.productionSeconds! / 3600, 1)} h)`,
       value: fmt(perDay),
     });
     steps.push({ label: 'Revenu', formula: `${fmt(perDay)} × ${fmt(out!.net)} (net, ${loc})`, value: fmt(revenue) });
     steps.push({
       label: 'Nourriture par jour',
-      formula: `${fmt(an.adultConsumptionPerDay, 1)} nutrition/jour ÷ ${fmt(ctx.farming.foodNutrition[foodId] ?? 48, 0)} × ${foodId === an.favoriteFood ? fmt(1 + an.favoriteBonus) : '1'} = ${fmt(units)} unités × ${fmt(foodPrice)}`,
+      formula: `${fmt((an.adultConsumptionPerDay * an.productionSeconds!) / 86400, 1)} nutrition/cycle × ${fmt(cyclesPerDay, 3)} ÷ (${fmt(ctx.farming.foodNutrition[foodId] ?? 48, 0)} × ${foodId === an.favoriteFood ? fmt(1 + an.favoriteBonus) : '1'}) = ${fmt(units)} unités × ${fmt(foodPrice)}`,
       value: `−${fmt(foodCost)}`,
     });
     steps.push({ label: 'Profit par parcelle et par jour', formula: `${slots} adultes × (revenu − nourriture) ; petit initial amorti (ignoré)`, value: fmt(P, 0) });
@@ -427,7 +457,7 @@ export function evaluateAnimal(an: FarmAnimal, strategy: AnimalStrategy, focused
     const foodCost = units * foodPrice;
     steps.push({
       label: 'Croissance',
-      formula: `T = ${fmt(an.growSeconds, 0)} s × ${ctx.settings.premium ? fmt(a.premiumGrowthMultiplier) : '1'} ; cycles/jour = 86 400 / T`,
+      formula: `T = ${fmt(an.growSeconds, 0)} s × ${ctx.settings.premium ? fmt(a.premiumGrowthMultiplier) : '1'} ; cycles/jour = ${fmt(a.cropCyclesPerDay)} passage(s) ÷ ⌈T × passages / 24 h⌉`,
       value: `${fmt(T / 3600, 1)} h ; ${fmt(cyclesPerDay, 3)} cycle(s)/jour`,
     });
     steps.push({
@@ -460,7 +490,7 @@ export function evaluateAnimal(an: FarmAnimal, strategy: AnimalStrategy, focused
       }
       steps.push({
         label: 'Petits excédentaires',
-        formula: `B = ${fmt(an.offspringChance, 4)}${focused ? ` + ${fmt(an.focusBonus, 4)} (soin)` : ''} ; ΔB = ${fmt(dB, 4)}${babySell ? ` × ${fmt(babySell.net)}` : ' (sans prix → 0)'}`,
+        formula: `B = ${focused ? 'min(1 ; ' : ''}${fmt(an.offspringChance, 4)}${focused ? ` + ${fmt(an.focusBonus, 4)} (soin))` : ''} ; ΔB = ${fmt(dB, 4)}${dB > 0 ? (babySell ? ` × ${fmt(babySell.net)}` : ' (sans prix → 0)') : ''}`,
         value: fmt(babyVal),
       });
     } else {
@@ -469,7 +499,7 @@ export function evaluateAnimal(an: FarmAnimal, strategy: AnimalStrategy, focused
       buys.push({ id: an.babyId, qty: -dB * slots * cyclesPerDay, loc: babyBuy!.loc, unitPrice: babyBuy!.price });
       steps.push({
         label: 'Petits à racheter',
-        formula: `B = ${fmt(an.offspringChance, 4)}${focused ? ` + ${fmt(an.focusBonus, 4)} (soin)` : ''} ; ΔB × prix d’achat = ${fmt(dB, 4)} × ${fmt(babyBuy!.price)} (${babyBuy!.loc === 'npc' ? 'PNJ' : babyBuy!.loc})`,
+        formula: `B = ${focused ? 'min(1 ; ' : ''}${fmt(an.offspringChance, 4)}${focused ? ` + ${fmt(an.focusBonus, 4)} (soin))` : ''} ; ΔB × prix d’achat = ${fmt(dB, 4)} × ${fmt(babyBuy!.price)} (${babyBuy!.loc === 'npc' ? 'PNJ' : babyBuy!.loc})`,
         value: fmt(babyVal),
       });
     }
@@ -587,6 +617,8 @@ export interface ShoppingLine {
 export interface PlanResult {
   plots: PlotPlan[];
   totalProfitPerDay: number;
+  /** Parcelles exclues du total faute de prix valides ou d'activité compatible (jamais comptées à 0 en silence). */
+  plotsWithoutProfit: number;
   focusUsed: number;
   focusLeft: number;
   buys: ShoppingLine[];
@@ -708,8 +740,10 @@ export function planIslands(input: PlannerInput, base: Omit<FarmContext, 'option
   const sellMap = new Map<string, ShoppingLine>();
   let total = 0;
   let used = 0;
+  let without = 0;
   for (const p of plots) {
     if (p.profitPerDay != null) total += p.profitPerDay;
+    else without += 1;
     used += p.focusPerDay;
     if (!p.eval?.ok) continue;
     for (const b of p.eval.buys) addLine(buyMap, b);
@@ -725,5 +759,5 @@ export function planIslands(input: PlannerInput, base: Omit<FarmContext, 'option
     if (vol == null || vol <= 0 || s.qtyPerDay > base.assumptions.maxVolumeShare * vol)
       warnings.push({ id: s.id, loc: s.loc, qtyPerDay: s.qtyPerDay, volume: vol != null && vol > 0 ? vol : null });
   }
-  return { plots, totalProfitPerDay: total, focusUsed: used, focusLeft: left, buys: sortLines(buyMap), sells, warnings };
+  return { plots, totalProfitPerDay: total, plotsWithoutProfit: without, focusUsed: used, focusLeft: left, buys: sortLines(buyMap), sells, warnings };
 }

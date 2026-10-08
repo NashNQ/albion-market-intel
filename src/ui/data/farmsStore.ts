@@ -7,6 +7,9 @@ import type { KeyValueStorage } from './routesStore';
 export const FARMS_KEY = 'ami.farms.v1';
 export const MAX_ISLANDS = 20;
 export const MAX_PLOTS = 30;
+export const MAX_FOCUS = 1e7;
+const MAX_SPECS = 200;
+const MAX_ID_LEN = 80;
 
 export interface FarmsState {
   v: 1;
@@ -57,6 +60,14 @@ export function sanitizeFarms(raw: unknown): FarmsState {
   const def = presetState();
   if (!isObj(raw) || raw.v !== 1) return def;
   const islands: PlannerIsland[] = [];
+  // Identifiants uniques (clés React, recherche du plan par parcelle) : doublons ou ID absurdes → régénérés.
+  const seen = new Set<string>();
+  const uid = (v: unknown, prefix: string) => {
+    const ok = typeof v === 'string' && v.length > 0 && v.length <= MAX_ID_LEN && !seen.has(v);
+    const id = ok ? (v as string) : farmId(prefix);
+    seen.add(id);
+    return id;
+  };
   if (Array.isArray(raw.islands)) {
     for (const i of raw.islands.slice(0, MAX_ISLANDS)) {
       if (!isObj(i)) continue;
@@ -65,14 +76,14 @@ export function sanitizeFarms(raw: unknown): FarmsState {
         for (const p of i.plots.slice(0, MAX_PLOTS)) {
           if (!isObj(p) || typeof p.type !== 'string' || !PLOT_TYPES.has(p.type)) continue;
           plots.push({
-            id: typeof p.id === 'string' && p.id ? p.id : farmId('p'),
+            id: uid(p.id, 'p'),
             type: p.type as PlotType,
-            activity: typeof p.activity === 'string' && p.activity ? p.activity : 'auto',
+            activity: typeof p.activity === 'string' && p.activity && p.activity.length <= MAX_ID_LEN ? p.activity : 'auto',
           });
         }
       }
       islands.push({
-        id: typeof i.id === 'string' && i.id ? i.id : farmId('i'),
+        id: uid(i.id, 'i'),
         name: typeof i.name === 'string' ? i.name.slice(0, 60) : 'Île',
         city: typeof i.city === 'string' && CITY_SET.has(i.city) ? (i.city as PlannerIsland['city']) : 'Lymhurst',
         plots,
@@ -81,14 +92,17 @@ export function sanitizeFarms(raw: unknown): FarmsState {
   }
   const specs: Record<string, number> = {};
   if (isObj(raw.specs)) {
-    for (const [k, v] of Object.entries(raw.specs)) if (typeof v === 'number' && Number.isFinite(v)) specs[k] = clampNum(v, 0, 100, 0);
+    for (const [k, v] of Object.entries(raw.specs).slice(0, MAX_SPECS)) {
+      if (k.length > MAX_ID_LEN || k === '__proto__' || typeof v !== 'number' || !Number.isFinite(v)) continue;
+      specs[k] = clampNum(v, 0, 100, 0);
+    }
   }
   const a = isObj(raw.assumptions) ? raw.assumptions : {};
   const D = DEFAULT_FARM_ASSUMPTIONS;
   return {
     v: 1,
     islands: Array.isArray(raw.islands) ? islands : def.islands,
-    focusPerDay: clampNum(raw.focusPerDay, 0, 1e7, def.focusPerDay),
+    focusPerDay: clampNum(raw.focusPerDay, 0, MAX_FOCUS, def.focusPerDay),
     specs,
     assumptions: {
       slotsPerPlot: clampNum(a.slotsPerPlot, 1, 100, D.slotsPerPlot),

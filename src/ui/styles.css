@@ -2,7 +2,6 @@
    Direction : registre de comptoir marchand. Encre bleu-ardoise, chiffres tabulaires serrés,
    et une seule note de couleur forte : les blasons des villes sur chaque route. */
 
-@import url('https://fonts.googleapis.com/css2?family=Sofia+Sans+Semi+Condensed:wght@400;500;600;700;800&display=swap');
 
 :root,
 :root[data-theme='dark'] {
@@ -1045,8 +1044,26 @@ table.plain tbody th {
     padding-left: 16px;
     padding-right: 16px;
   }
+  /* 8 onglets ne tiennent pas en 360 px : défilement horizontal dans la barre (jamais de la page),
+     sans barre de défilement, avec un fondu à droite qui signale la suite. */
   .tabs {
-    padding: 0 8px;
+    padding: 0 28px 0 8px;
+    scroll-padding-inline: 8px 28px;
+    overscroll-behavior-x: contain;
+    scrollbar-width: none;
+    -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 32px), transparent);
+    mask-image: linear-gradient(to right, #000 calc(100% - 32px), transparent);
+  }
+  .tabs::-webkit-scrollbar {
+    display: none;
+  }
+  .tab {
+    padding-left: 10px;
+    padding-right: 10px;
+  }
+  .tab::after {
+    left: 10px;
+    right: 10px;
   }
   .brand-name {
     font-size: 17px;

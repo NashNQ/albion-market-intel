@@ -9,7 +9,7 @@ const REPO_URL = 'https://github.com/NashNQ/albion-market-intel';
 /** Schéma d'architecture : couleurs tirées des variables CSS, donc thémable. */
 function ArchitectureDiagram() {
   return (
-    <figure className="mk-diagram">
+    <figure className="mk-diagram" tabIndex={0}>
       <svg
         viewBox="0 0 880 330"
         role="img"
@@ -38,9 +38,9 @@ function ArchitectureDiagram() {
         {/* Sources */}
         <g>
           <rect x="20" y="44" width="180" height="78" rx="8" className="d-box" />
-          <text x="34" y="72" className="d-title">Albion Online</text>
-          <text x="34" y="90" className="d-title">Data Project</text>
-          <text x="34" y="110" className="d-sub">prix et volumes, participatif</text>
+          <text x="34" y="68" className="d-title">Albion Online</text>
+          <text x="34" y="86" className="d-title">Data Project</text>
+          <text x="34" y="110" className="d-sub">prix et volumes</text>
         </g>
         <g>
           <rect x="20" y="196" width="180" height="78" rx="8" className="d-box" />
@@ -53,14 +53,14 @@ function ArchitectureDiagram() {
         <g>
           <rect x="236" y="44" width="196" height="230" rx="8" className="d-box d-box-strong" />
           <text x="252" y="74" className="d-title">GitHub Actions</text>
-          <text x="252" y="104" className="d-sub">prices.yml : toutes les 15 min</text>
-          <text x="252" y="126" className="d-sub">volumes.yml : toutes les 6 h</text>
-          <text x="252" y="148" className="d-sub">recipes.yml : chaque semaine</text>
+          <text x="252" y="104" className="d-sub">prix : toutes les 15 min</text>
+          <text x="252" y="126" className="d-sub">volumes : toutes les 6 h</text>
+          <text x="252" y="148" className="d-sub">recettes : chaque semaine</text>
           <line x1="252" y1="170" x2="416" y2="170" className="d-rule" />
           <text x="252" y="196" className="d-title">Branche data</text>
           <text x="252" y="218" className="d-sub">market.json</text>
           <text x="252" y="238" className="d-sub">recipes.json</text>
-          <text x="252" y="260" className="d-sub">aucun secret, un seul commit</text>
+          <text x="252" y="260" className="d-sub">un seul commit, écrasé</text>
         </g>
 
         {/* Diffusion */}
@@ -106,7 +106,7 @@ const STACK: { name: string; role: string }[] = [
   { name: 'TanStack Table', role: 'tableaux triables et virtualisés, des milliers de lignes sans ralentir' },
   { name: 'GitHub Actions', role: 'collecte planifiée des prix, des volumes et des recettes' },
   { name: 'Netlify', role: 'hébergement statique et relais des fichiers de données' },
-  { name: 'Vitest', role: 'plus de 160 tests : moteur, collecte, interface' },
+  { name: 'Vitest', role: 'plus de 200 tests : moteur, collecte, fermes, interface' },
   { name: 'CSS maison', role: 'variables pour les thèmes clair et sombre, aucune bibliothèque de composants' },
 ];
 
@@ -150,7 +150,7 @@ const FINDINGS: { title: string; text: string }[] = [
 const TRADEOFFS: { choice: string; why: string }[] = [
   {
     choice: 'La collecte tourne sur GitHub Actions, pas sur des fonctions Netlify.',
-    why: 'Le plan gratuit de Netlify plafonne à 300 crédits par mois ; une collecte toutes les 15 minutes l’aurait épuisé. GitHub Actions publie sur une branche dédiée, et Netlify ne fait que servir les fichiers.',
+    why: 'Le plan gratuit de Netlify limite les builds et les fonctions ; une collecte toutes les 15 minutes y aurait consommé l’essentiel du quota. GitHub Actions publie sur une branche dédiée, et Netlify ne fait que servir les fichiers.',
   },
   {
     choice: 'Les prix sont participatifs : leur âge est affiché et pèse sur la confiance.',
@@ -158,7 +158,7 @@ const TRADEOFFS: { choice: string; why: string }[] = [
   },
   {
     choice: 'Les hypothèses agricoles sont modifiables.',
-    why: 'Rendements, temps de pousse et part de focus dépendent du joueur. Elles sont exposées comme des réglages plutôt que figées dans le code.',
+    why: 'Certaines constantes agricoles (rendements, bonus premium, effet du focus) ne sont pas publiées par le jeu. Plutôt que de les figer dans le code, la page Fermes les expose dans un panneau « Hypothèses », chacune avec son explication, et vous pouvez les corriger.',
   },
   {
     choice: 'Le calcul se fait dans le navigateur.',
@@ -232,12 +232,12 @@ export function AboutPage() {
               <div>
                 <dt>Recettes</dt>
                 <dd>6 675</dd>
-                <dd className="mk-facts-note">115 raffinages et l’équipement</dd>
+                <dd className="mk-facts-note">130 raffinages et 6 545 crafts d’équipement</dd>
               </div>
               <div>
                 <dt>Objets suivis</dt>
                 <dd>7 523</dd>
-                <dd className="mk-facts-note">et 84 objets agricoles à venir</dd>
+                <dd className="mk-facts-note">plus 84 objets agricoles pour Fermes</dd>
               </div>
               <div>
                 <dt>Dans le marché chargé</dt>

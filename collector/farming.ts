@@ -39,7 +39,11 @@ export function indexLoot(lootJson: any): Map<string, LootEntry[]> {
     for (const it of arr(l.Item as Raw | Raw[])) {
       const amount = String(it?.['@amount'] ?? '1');
       const [lo, hi] = amount.includes('-') ? amount.split('-').map(Number) : [Number(amount), Number(amount)];
-      entries.push({ id: String(it['@type']), chance: num(it['@chance'], 1), avg: (lo + hi) / 2 });
+      if (!it?.['@type']) continue;
+      const avg = (lo + hi) / 2;
+      // Quantité illisible (« ? », « 3- ») → entrée ignorée plutôt qu'un NaN propagé dans les rendements.
+      if (!Number.isFinite(avg) || avg < 0) continue;
+      entries.push({ id: String(it['@type']), chance: num(it['@chance'], 1), avg });
     }
     out.set(String(name), entries);
   }

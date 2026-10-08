@@ -143,7 +143,8 @@ export function FarmRanking({ rows, metaById }: { rows: FarmEval[]; metaById: Ma
     sortDescFirst: true,
     getRowId: (r) => r.rowId,
   });
-  const sel = selected ? rows.find((r) => r.rowId === selected) ?? null : null;
+  // Le détail suit les filtres : une ligne masquée par un filtre ferme son panneau.
+  const sel = selected ? filtered.find((r) => r.rowId === selected) ?? null : null;
 
   return (
     <div className="farm-ranking">
@@ -167,7 +168,12 @@ export function FarmRanking({ rows, metaById }: { rows: FarmEval[]; metaById: Ma
         </label>
         <label>
           <span className="f-label">Stratégie animale</span>
-          <select value={strategy} onChange={(e) => setStrategy(e.target.value as 'all' | AnimalStrategy)}>
+          <select
+            value={strategy}
+            disabled={kind === 'crop' || kind === 'herb'}
+            title={kind === 'crop' || kind === 'herb' ? 'Sans effet sur les cultures et les herbes' : undefined}
+            onChange={(e) => setStrategy(e.target.value as 'all' | AnimalStrategy)}
+          >
             <option value="all">Toutes</option>
             {(Object.keys(STRATEGY_LABEL) as AnimalStrategy[]).map((s) => (
               <option key={s} value={s}>

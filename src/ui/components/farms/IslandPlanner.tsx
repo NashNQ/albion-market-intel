@@ -2,8 +2,8 @@
 import { useMemo } from 'react';
 import { PRODUCTION_LOCATIONS, type FarmingData, type ItemMeta, type Location } from '../../../types';
 import { PLOT_LABEL, activitiesFor, type PlanResult, type PlannerIsland, type PlotType, type ShoppingLine } from '../../../engine/farming';
-import { MAX_ISLANDS, MAX_PLOTS, farmId, makePlots, type FarmsState } from '../../data/farmsStore';
-import { fmtInt, fmtSilver } from '../../format';
+import { MAX_FOCUS, MAX_ISLANDS, MAX_PLOTS, farmId, makePlots, type FarmsState } from '../../data/farmsStore';
+import { fmt1, fmtInt, fmtSilver } from '../../format';
 import { LocChip } from '../Route';
 import { ItemIcon } from '../ItemIcon';
 import { FarmFlags, activityName, nameOf } from './shared';
@@ -50,7 +50,7 @@ function Lines({ title, lines, metaById, empty }: { title: string; lines: Shoppi
                 <td>
                   <Place loc={l.loc} />
                 </td>
-                <td className="num">{fmtInt(Math.round(l.qtyPerDay * 10) / 10)}</td>
+                <td className="num">{fmt1(l.qtyPerDay)}</td>
                 <td className="num">{fmtSilver(l.totalPerDay)}</td>
               </tr>
             ))}
@@ -93,11 +93,12 @@ export function IslandPlanner({ state, update, reset, plan, farming, metaById }:
               id="farm-focus"
               type="number"
               min={0}
+              max={MAX_FOCUS}
               step={500}
               value={state.focusPerDay}
               onChange={(e) => {
                 const n = Number(e.target.value);
-                if (Number.isFinite(n)) update((s) => ({ ...s, focusPerDay: Math.max(0, n) }));
+                if (Number.isFinite(n)) update((s) => ({ ...s, focusPerDay: Math.min(MAX_FOCUS, Math.max(0, n)) }));
               }}
             />
             <span className="suffix">points</span>
@@ -131,6 +132,7 @@ export function IslandPlanner({ state, update, reset, plan, farming, metaById }:
       {state.islands.map((isl) => {
         const islPlots = plan.plots.filter((p) => p.islandId === isl.id);
         const islProfit = islPlots.reduce((s, p) => s + (p.profitPerDay ?? 0), 0);
+        const islMissing = islPlots.filter((p) => p.profitPerDay == null).length;
         return (
           <section className="farm-island" key={isl.id} aria-label={`Île ${isl.name}`}>
             <header className="farm-island-head">
@@ -158,7 +160,13 @@ export function IslandPlanner({ state, update, reset, plan, farming, metaById }:
                 </select>
               </label>
               <span className="farm-island-total">
-                <span className="f-label">Profit/jour</span> <strong className="profit">{fmtSilver(islProfit)}</strong>
+                <span className="f-label">Profit/jour</span>{' '}
+                <strong className={islProfit >= 0 ? 'profit' : 'farm-loss'}>{fmtSilver(islProfit)}</strong>
+                {islMissing > 0 && (
+                  <span className="farm-missing-cell">
+                    hors {islMissing} parcelle{islMissing > 1 ? 's' : ''} sans données
+                  </span>
+                )}
               </span>
               <button
                 type="button"
@@ -204,6 +212,9 @@ export function IslandPlanner({ state, update, reset, plan, farming, metaById }:
                         <option value="auto">
                           Auto{pp?.auto && pp.activityId ? ` (${activityName(pp.activityId, metaById, cropOf)})` : ''}
                         </option>
+                        {p.activity !== 'auto' && !choices[p.type].some((c) => c.id === p.activity) && (
+                          <option value={p.activity}>Activité inconnue ou incompatible</option>
+                        )}
                         {choices[p.type].map((c) => (
                           <option key={c.id} value={c.id}>
                             {activityName(c.id, metaById, cropOf)}
@@ -253,9 +264,15 @@ export function IslandPlanner({ state, update, reset, plan, farming, metaById }:
       <section className="farm-totals" aria-label="Totaux">
         <div>
           <span className="f-label">Profit total par jour</span>
-          <strong className="profit farm-big" data-testid="farm-total">
+          <strong className={`${plan.totalProfitPerDay >= 0 ? 'profit' : 'farm-loss'} farm-big`} data-testid="farm-total">
             {fmtSilver(plan.totalProfitPerDay)}
           </strong>
+          {plan.plotsWithoutProfit > 0 && (
+            <span className="farm-missing-cell" data-testid="farm-total-missing">
+              Hors {plan.plotsWithoutProfit} parcelle{plan.plotsWithoutProfit > 1 ? 's' : ''} sans données (non comptée
+              {plan.plotsWithoutProfit > 1 ? 's' : ''})
+            </span>
+          )}
         </div>
         <div>
           <span className="f-label">Focus utilisé</span>

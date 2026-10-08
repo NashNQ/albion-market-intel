@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import { useEffect, useRef, type ReactNode } from 'react';
 import { fmtClock, fmtInt } from '../format';
 
 export type RouteName = 'accueil' | 'raffinage' | 'craft' | 'fermes' | 'black-market' | 'routes' | 'item' | 'reglages' | 'a-propos';
@@ -45,10 +45,22 @@ export function Header({
   theme: Theme;
   onTheme: () => void;
 }) {
+  // En mobile, la barre d'onglets défile horizontalement : on garde l'onglet actif visible (ex. « À propos »).
+  const tabsRef = useRef<HTMLElement>(null);
+  useEffect(() => {
+    const nav = tabsRef.current;
+    const active = nav?.querySelector<HTMLElement>('[aria-current="page"]');
+    if (!nav || !active || nav.scrollWidth <= nav.clientWidth) return;
+    const left = active.getBoundingClientRect().left - nav.getBoundingClientRect().left + nav.scrollLeft;
+    const right = left + active.offsetWidth;
+    if (left < nav.scrollLeft || right > nav.scrollLeft + nav.clientWidth) {
+      nav.scrollLeft = Math.max(0, left - (nav.clientWidth - active.offsetWidth) / 2);
+    }
+  }, [current]);
   return (
     <header className="site-head">
       <div className="head-row">
-        <a className="brand" href="#/raffinage">
+        <a className="brand" href="#/">
           <img className="brand-mark" src="/favicon-32.png" srcSet="/favicon-32.png 1x, /apple-touch-icon.png 4x" width="26" height="26" alt="" />
           <span className="brand-name">
             Albion Market Intel <span className="brand-srv">Europe</span>
@@ -76,7 +88,7 @@ export function Header({
           </button>
         </div>
       </div>
-      <nav className="tabs" aria-label="Sections">
+      <nav className="tabs" aria-label="Sections" ref={tabsRef}>
         {TABS.map((t) => (
           <a key={t.route} href={t.href} className="tab" aria-current={current === t.route ? 'page' : undefined}>
             {t.label}

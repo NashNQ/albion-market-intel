@@ -16,7 +16,7 @@
 }
 .farm-assumptions-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(min(240px, 100%), 1fr));
   gap: 14px 18px;
 }
 .farm-tabs {
@@ -245,7 +245,7 @@
 }
 .farm-lists {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(300px, 100%), 1fr));
   gap: 12px;
   margin-bottom: 14px;
 }
@@ -283,7 +283,7 @@
 .farm-specs-grid {
   padding: 12px 14px;
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(min(200px, 100%), 1fr));
   gap: 8px 14px;
 }
 .farm-spec {
@@ -305,7 +305,7 @@
     position: static;
   }
 }
-@media (max-width: 640px) {
+@media (max-width: 760px) {
   .farm-plot {
     grid-template-columns: 24px 1fr auto;
   }

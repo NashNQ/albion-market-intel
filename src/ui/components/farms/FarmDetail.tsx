@@ -1,7 +1,7 @@
 // Panneau de détail : calcul pas à pas d'une activité.
 import type { ItemMeta, Location } from '../../../types';
 import type { FarmEval, FarmFlow } from '../../../engine/farming';
-import { fmtAgeH, fmtInt, fmtSilver } from '../../format';
+import { fmt1, fmtAgeH, fmtInt, fmtSilver } from '../../format';
 import { LocChip } from '../Route';
 import { ItemIcon } from '../ItemIcon';
 import { FarmFlags, activityLabel, nameOf, subjectName } from './shared';
@@ -20,7 +20,7 @@ function Flows({ title, flows, metaById }: { title: string; flows: FarmFlow[]; m
       <ul>
         {flows.map((f) => (
           <li key={`${f.id}-${f.loc}`}>
-            <span className="qty">{fmtInt(Math.round(f.qty * 10) / 10)}</span> {nameOf(metaById, f.id)} <Place loc={f.loc} />{' '}
+            <span className="qty">{fmt1(f.qty)}</span> {nameOf(metaById, f.id)} <Place loc={f.loc} />{' '}
             <span className="muted">à {fmtSilver(f.unitPrice)}</span>
           </li>
         ))}
