@@ -538,3 +538,5 @@
   color: var(--danger);
   font-weight: 700;
 }
+
+.rb-unavailable { color: var(--muted); font-style: italic; font-weight: 600; }

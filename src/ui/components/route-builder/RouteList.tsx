@@ -69,8 +69,11 @@ export function RouteList({ routes, results, activeId, onOpen, onRename, onDupli
                 </span>
               </div>
               <div className="rb-list-profit">
-                <Money v={res?.profit} signed />
-                {res && !res.complete && <Badge tone="danger">incomplète</Badge>}
+                {res && !res.complete ? (
+                  <Badge tone="danger">prix manquants</Badge>
+                ) : (
+                  <Money v={res?.profit} signed />
+                )}
                 {serious > 0 && (
                   <Badge tone="warn" title={res?.warnings.map((w) => w.message).join('\n')}>
                     {serious} avertissement{serious > 1 ? 's' : ''}

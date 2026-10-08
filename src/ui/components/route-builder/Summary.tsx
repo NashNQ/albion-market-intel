@@ -28,13 +28,29 @@ export function Warnings({ warnings }: { warnings: ChainWarning[] }) {
   );
 }
 
+const BLOCKING: ChainWarning['kind'][] = ['missing-price', 'stale-price', 'missing-sell', 'stale-sell', 'unknown-recipe'];
+
+/** Un total n'est affiché que si tous les prix nécessaires sont disponibles : sinon il serait trompeur
+ *  (un achat manquant compte 0, une vente manquante annule le revenu). */
+export function isBlocked(result: ChainResult): boolean {
+  return !result.complete && result.steps.length > 0;
+}
+
+function Unavailable() {
+  return <span className="rb-unavailable">Indisponible</span>;
+}
+
 export function Summary({ result }: { result: ChainResult }) {
+  const blocked = isBlocked(result);
+  const blockers = result.warnings.filter((w) => BLOCKING.includes(w.kind)).length;
+  const sellMissing = result.warnings.some((w) => w.kind === 'missing-sell' || w.kind === 'stale-sell');
   return (
     <section className="rb-summary" aria-labelledby="rb-summary-title">
       <h2 id="rb-summary-title">Résumé</h2>
       {!result.complete && result.steps.length > 0 && (
         <p className="rb-incomplete" role="status">
-          Route incomplète : certains prix manquent, le total est calculé sans eux.
+          Calcul incomplet : {blockers > 1 ? `${blockers} prix manquent ou sont périmés` : 'un prix manque ou est périmé'}.
+          Saisissez un prix manuel sur la ligne concernée (voir les avertissements) pour obtenir le profit.
         </p>
       )}
       <dl className="rb-totals">
@@ -54,7 +70,7 @@ export function Summary({ result }: { result: ChainResult }) {
         <div>
           <dt>Revenu net</dt>
           <dd>
-            <Money v={result.revenue} />
+            {sellMissing ? <Unavailable /> : <Money v={result.revenue} />}
           </dd>
         </div>
         <div>
@@ -72,18 +88,18 @@ export function Summary({ result }: { result: ChainResult }) {
         <div className="rb-total-main">
           <dt>Profit total</dt>
           <dd data-testid="rb-profit-total">
-            <Money v={result.profit} signed />
+            {blocked ? <Unavailable /> : <Money v={result.profit} signed />}
           </dd>
         </div>
         <div>
           <dt>Profit par unité finale</dt>
           <dd>
-            <Money v={result.profitPerUnit} signed />
+            {blocked ? <Unavailable /> : <Money v={result.profitPerUnit} signed />}
           </dd>
         </div>
         <div>
           <dt>Marge</dt>
-          <dd>{fmtPct(result.margin)}</dd>
+          <dd>{blocked ? <Unavailable /> : fmtPct(result.margin)}</dd>
         </div>
         <div>
           <dt>Prix le plus ancien</dt>
