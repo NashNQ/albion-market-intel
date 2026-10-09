@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 import { useMarket } from './data/useMarket';
 import { useSettings } from './data/useSettings';
 import { useRankings } from './data/useRankings';
@@ -7,13 +7,17 @@ import { EmptyScreen, ErrorScreen, Footer, Header, LateBanner, Layout, Skeleton,
 import { TopRefining } from './pages/TopRefining';
 import { TopCrafting } from './pages/TopCrafting';
 import { BlackMarket } from './pages/BlackMarket';
-import { ItemDetail } from './pages/ItemDetail';
 import { SettingsPage } from './pages/Settings';
-import { RouteBuilder } from './pages/RouteBuilder';
 import { HomePage } from './pages/Home';
-import { AboutPage } from './pages/About';
-import { FarmsPage } from './pages/Farms';
 import { shareCodeFromHash } from './data/routesStore';
+
+// Pages lourdes chargées à la demande (graphiques, fermes, transport…).
+const RouteBuilder = lazy(() => import('./pages/RouteBuilder').then((m) => ({ default: m.RouteBuilder })));
+const AboutPage = lazy(() => import('./pages/About').then((m) => ({ default: m.AboutPage })));
+const FarmsPage = lazy(() => import('./pages/Farms').then((m) => ({ default: m.FarmsPage })));
+const TransportPage = lazy(() => import('./pages/Transport').then((m) => ({ default: m.TransportPage })));
+const FavoritesPage = lazy(() => import('./pages/Favorites').then((m) => ({ default: m.FavoritesPage })));
+const ItemDetail = lazy(() => import('./pages/ItemDetail').then((m) => ({ default: m.ItemDetail })));
 
 export interface ParsedRoute {
   name: RouteName;
@@ -37,6 +41,10 @@ export function parseHash(hash: string): ParsedRoute {
       return { name: 'raffinage' };
     case 'fermes':
       return { name: 'fermes' };
+    case 'transport':
+      return { name: 'transport' };
+    case 'favoris':
+      return { name: 'favoris' };
     case 'a-propos':
       return { name: 'a-propos' };
     case 'craft':
@@ -134,6 +142,8 @@ export function App() {
   else if (route.name === 'accueil') body = <HomePage />;
   else if (route.name === 'a-propos') body = <AboutPage />;
   else if (route.name === 'fermes') body = <FarmsPage />;
+  else if (route.name === 'transport') body = <TransportPage />;
+  else if (route.name === 'favoris') body = <FavoritesPage />;
   else if (route.name === 'craft') body = <TopCrafting />;
   else if (route.name === 'black-market') body = <BlackMarket />;
   else if (route.name === 'reglages') body = <SettingsPage />;
@@ -148,7 +158,9 @@ export function App() {
       </a>
       <Header current={route.name} ageMinutes={market.ageMinutes} theme={theme} onTheme={toggleTheme} />
       {(status === 'stale' || status === 'error') && <LateBanner updatedAt={market.updatedAt} onRetry={market.reload} />}
-      <Layout>{body}</Layout>
+      <Layout>
+        <Suspense fallback={<Skeleton />}>{body}</Suspense>
+      </Layout>
       <Footer />
     </AppDataContext.Provider>
   );

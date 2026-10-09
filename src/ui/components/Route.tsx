@@ -1,5 +1,5 @@
 import type { Location, RouteResult } from '../../types';
-import { FLAG_LABEL, LOC_ABBR, LOC_KEY, fmt2 } from '../format';
+import { AGE_TONE_TITLE, FLAG_LABEL, LOC_ABBR, LOC_KEY, ageTone, fmt2, fmtAgeH } from '../format';
 
 export function LocChip({ loc }: { loc: Location }) {
   return (
@@ -19,15 +19,34 @@ export function buyLocations(r: RouteResult): Location[] {
   return out;
 }
 
-export function Flags({ flags }: { flags: RouteResult['flags'] }) {
+/** Libellé court d'un drapeau ; 'stale' affiche l'âge réel (« Prix de 9 h ») quand il est connu. */
+export function flagShort(f: RouteResult['flags'][number], ageH?: number): string {
+  if (f === 'stale' && ageH != null && Number.isFinite(ageH)) return `Prix de ${fmtAgeH(ageH)}`;
+  return FLAG_LABEL[f].short;
+}
+
+export function Flags({ flags, ageH }: { flags: RouteResult['flags']; ageH?: number }) {
   if (flags.length === 0) return null;
   return (
     <span className="flags">
       {flags.map((f) => (
         <span key={f} className={`flag flag-${f}`} title={FLAG_LABEL[f].long}>
-          {FLAG_LABEL[f].short}
+          {flagShort(f, ageH)}
         </span>
       ))}
+    </span>
+  );
+}
+
+/** Âge d'un prix avec le code couleur partagé (voir ageTone). */
+export function AgeBadge({ h, maxH }: { h: number | null | undefined; maxH: number }) {
+  if (h == null || !Number.isFinite(h)) return <span className="age muted">—</span>;
+  const tone = ageTone(h, maxH);
+  const stale = h >= maxH;
+  return (
+    <span className={`age age-t-${tone}`} title={AGE_TONE_TITLE[tone]}>
+      {fmtAgeH(h)}
+      {stale && <span className="age-tag">périmé</span>}
     </span>
   );
 }
@@ -48,7 +67,7 @@ export function RouteCell({ r }: { r: RouteResult }) {
         <span className="route-sep" aria-hidden="true">›</span>
         <LocChip loc={r.sellAt} />
       </span>
-      <Flags flags={r.flags} />
+      <Flags flags={r.flags} ageH={r.oldestPriceAgeH} />
     </span>
   );
 }
@@ -57,7 +76,7 @@ export function RouteCell({ r }: { r: RouteResult }) {
 export function routeText(r: RouteResult): string {
   const buys = buyLocations(r).map((l) => LOC_ABBR[l]).join(' ') || '—';
   const path = `${buys} › ${LOC_ABBR[r.craftAt]} › ${LOC_ABBR[r.sellAt]}`;
-  return [path, ...r.flags.map((f) => FLAG_LABEL[f].short)].join(' · ');
+  return [path, ...r.flags.map((f) => flagShort(f, r.oldestPriceAgeH))].join(' · ');
 }
 
 /** Barre de confiance : C est un coefficient entre 0 et 1, affiché « 0,86 ». */

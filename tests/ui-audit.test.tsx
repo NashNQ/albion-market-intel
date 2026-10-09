@@ -29,7 +29,9 @@ const data = rows.map((x) => x.r);
 describe('3a : traductions des catégories', () => {
   it('module i18n complet avec repli sur l’ID brut', () => {
     expect(Object.keys(CATEGORY_FR)).toHaveLength(13);
-    expect(Object.keys(SUBCATEGORY_FR)).toHaveLength(51);
+    expect(Object.keys(SUBCATEGORY_FR)).toHaveLength(53);
+    expect(subcategoryLabel('food')).toBe('Cuisine');
+    expect(subcategoryLabel('potions')).toBe('Alchimie');
     expect(categoryLabel('bags')).toBe('Sacs');
     expect(subcategoryLabel('bags')).toBe('Sacs');
     expect(subcategoryLabel('refinedresources')).toBe('Ressources raffinées');
@@ -82,8 +84,8 @@ describe('3d : tri des colonnes', () => {
   });
   it('Profit/unité : premier clic = décroissant', () => {
     render(<RouteTable rows={data} metaById={metaById} variant="ranked" caption="t" />);
-    fireEvent.click(within(screen.getByRole('columnheader', { name: /Profit/ })).getByRole('button'));
-    expect(screen.getByRole('columnheader', { name: /Profit/ }).getAttribute('aria-sort')).toBe('descending');
+    fireEvent.click(within(screen.getByRole('columnheader', { name: /Profit\/unité/ })).getByRole('button'));
+    expect(screen.getByRole('columnheader', { name: /Profit\/unité/ }).getAttribute('aria-sort')).toBe('descending');
     expect(names()).toEqual(['Sac', 'Épée', 'Bâton']);
   });
   it('badge « Estimé » dans la table', () => {

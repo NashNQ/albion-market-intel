@@ -1,10 +1,13 @@
 import { useMemo } from 'react';
-import { LOCATIONS, type Location, type RouteResult } from '../../types';
+import type { Location, RouteResult } from '../../types';
 import { bestRoute, bestCraftLocation, buildPriceIndex, saleDeduction, stationFee, type RouteFailure } from '../../engine';
 import { useAppData } from '../context';
-import { ageHFromIso, categoryLabel, fmt2, fmtAgeH, fmtInt, fmtPct, fmtSilver, itemHref, subcatLabel } from '../format';
+import { categoryLabel, fmt2, fmtAgeH, fmtInt, fmtPct, fmtSilver, itemHref, subcatLabel } from '../format';
 import { ItemIcon } from '../components/ItemIcon';
 import { ConfidenceBar, Flags, LocChip } from '../components/Route';
+import { ItemMarket } from '../components/ItemMarket';
+import { FavoriteButton } from '../components/FavoriteButton';
+import '../item-detail.css';
 
 const FAILURE_FR: Record<RouteFailure, string> = {
   missing: 'il manque des prix pour un ingrédient ou pour l’objet',
@@ -71,49 +74,12 @@ export function ItemDetail({ id }: { id: string }) {
             <code className="item-id">{id}</code>
           </p>
         </div>
+        <div className="item-head-actions" data-slot="item-actions">
+          <FavoriteButton id={id} name={name} size="md" />
+        </div>
       </header>
 
-      <section aria-labelledby="h-prices" className="block">
-        <h2 id="h-prices">Prix par lieu</h2>
-        {item ? (
-          <div className="table-scroll">
-            <table className="plain">
-              <thead>
-                <tr>
-                  <th scope="col">Lieu</th>
-                  <th scope="col" className="num">Vente min.</th>
-                  <th scope="col" className="num secondary">Âge</th>
-                  <th scope="col" className="num">Achat max.</th>
-                  <th scope="col" className="num secondary">Âge</th>
-                  <th scope="col" className="num">Volume médian 7 j</th>
-                  <th scope="col" className="num secondary">Historique</th>
-                </tr>
-              </thead>
-              <tbody>
-                {LOCATIONS.map((loc) => {
-                  const p = item.prices[loc];
-                  const hist = item.historyDays[loc];
-                  return (
-                    <tr key={loc}>
-                      <th scope="row">
-                        <LocChip loc={loc} /> <span className="loc-full">{loc}</span>
-                      </th>
-                      <td className="num">{fmtSilver(p?.sell)}</td>
-                      <td className="num secondary">{fmtAgeH(ageHFromIso(p?.sellAt, now))}</td>
-                      <td className="num">{fmtSilver(p?.buy)}</td>
-                      <td className="num secondary">{fmtAgeH(ageHFromIso(p?.buyAt, now))}</td>
-                      <td className="num">{fmtInt(item.volume7d[loc])}</td>
-                      <td className="num secondary">{hist == null ? '—' : `${hist}/7 j`}</td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        ) : (
-          <p>Aucun prix collecté pour cet objet.</p>
-        )}
-      </section>
+      <ItemMarket id={id} item={item} />
 
       {recipe && (
         <section aria-labelledby="h-recipe" className="block">

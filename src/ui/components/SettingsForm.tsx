@@ -169,6 +169,13 @@ export function SettingsForm({ settings: s, update, reset, compact }: Props) {
       >
         <Toggle id={`${id}-fallback`} checked={s.historyFallback} onChange={(b) => update({ historyFallback: b })} />
       </Field>
+      <Field
+        id={`${id}-stale`}
+        label="Afficher les prix périmés (plus vieux que l’âge maximal)"
+        help="Les routes qui n’existent que grâce à des prix trop vieux apparaissent avec une pastille ambre « Prix de 9 h » et une confiance divisée par deux. Les prix de plus de 7 jours restent ignorés."
+      >
+        <Toggle id={`${id}-stale`} checked={s.showStale} onChange={(b) => update({ showStale: b })} />
+      </Field>
       <div className="settings-actions">
         <button type="button" className="btn" onClick={reset}>
           Réinitialiser les réglages

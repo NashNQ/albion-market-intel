@@ -184,7 +184,7 @@ describe('interface', () => {
     expect(within(table).getByText('572 ag')).toBeTruthy();
     expect(within(table).getByText('Zone rouge')).toBeTruthy();
     expect(within(table).getByText('CAE')).toBeTruthy();
-    const scoreTh = within(table).getByRole('columnheader', { name: /Score/ });
+    const scoreTh = within(table).getByRole('columnheader', { name: /Profit\/jour estimé/ });
     expect(scoreTh.getAttribute('aria-sort')).toBe('descending');
     expect(screen.getByText('Mis à jour il y a 12 min')).toBeTruthy();
     expect(screen.getByText('Réglages rapides')).toBeTruthy();
@@ -207,8 +207,8 @@ describe('interface', () => {
     expect(screen.getByRole('heading', { level: 1, name: 'Black Market' })).toBeTruthy();
     expect(screen.getByRole('note').textContent).toMatch(/aucun volume fiable/);
     const table = screen.getByRole('table');
-    expect(within(table).queryByRole('columnheader', { name: /Score/ })).toBeNull();
-    expect(within(table).queryByRole('columnheader', { name: /Volume/ })).toBeNull();
+    expect(within(table).queryByRole('columnheader', { name: /Profit\/jour estimé/ })).toBeNull();
+    expect(within(table).queryByRole('columnheader', { name: /Ventes\/jour/ })).toBeNull();
     expect(within(table).getByRole('columnheader', { name: /Profit\/unité/ }).getAttribute('aria-sort')).toBe('descending');
     expect(within(table).getAllByRole('row').length).toBe(2);
     // 3f : la ligne de statistiques concerne le Black Market, pas les stats globales.

@@ -75,7 +75,36 @@ export const FLAG_LABEL: Record<RouteResult['flags'][number], { short: string; l
     short: 'Estimé',
     long: 'Au moins un prix récent manquait : la moyenne sur 7 jours du même lieu a été utilisée (prix estimé). Confiance plafonnée à 0,60.',
   },
+  stale: {
+    short: 'Périmé',
+    long: 'Cette route n’existe que grâce à des prix plus vieux que l’âge maximal réglé : le marché a pu changer depuis. Confiance divisée par deux.',
+  },
 };
+
+/**
+ * Code couleur unique de l'âge d'un prix :
+ * - 'fresh' : moins d'une heure ;
+ * - 'ok'    : moins que l'âge maximal réglé ;
+ * - 'stale' : au moins l'âge maximal (ambre, « périmé ») ;
+ * - 'old'   : 24 h ou plus (grisé).
+ */
+export type AgeTone = 'fresh' | 'ok' | 'stale' | 'old';
+export function ageTone(ageH: number, maxAgeH: number): AgeTone {
+  if (!Number.isFinite(ageH) || ageH >= 24) return 'old';
+  if (ageH >= maxAgeH) return 'stale';
+  if (ageH < 1) return 'fresh';
+  return 'ok';
+}
+export const AGE_TONE_TITLE: Record<AgeTone, string> = {
+  fresh: 'Prix récent (moins d’une heure)',
+  ok: 'Prix utilisable (plus jeune que l’âge maximal réglé)',
+  stale: 'Prix périmé (plus vieux que l’âge maximal réglé)',
+  old: 'Prix très ancien (24 h ou plus)',
+};
+
+/** Niveau de confiance lisible (mêmes seuils que la barre de confiance). */
+export type ConfidenceLevel = 'élevée' | 'moyenne' | 'faible';
+export const confidenceLevel = (c: number): ConfidenceLevel => (c >= 0.85 ? 'élevée' : c >= 0.65 ? 'moyenne' : 'faible');
 
 /** Libellé français d'une sous-catégorie (délègue à i18n.ts, repli sur l'ID brut). */
 export const subcatLabel = (s: string): string => subcategoryLabel(s);

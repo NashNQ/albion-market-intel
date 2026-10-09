@@ -39,11 +39,16 @@ function levelFromName(uniquename: string): number {
   return m ? Number(m[1]) : 0;
 }
 
-/** ID API d'une craftresource : @enchantmentlevel prioritaire, sinon suffixe _LEVELn. */
-function resourceApiId(res: Raw): string {
+/**
+ * ID API d'une craftresource : @enchantmentlevel de la ressource prioritaire, puis celui de la définition
+ * de l'item (ressources brutes/raffinées _LEVELn), sinon suffixe _LEVELn si l'item est inconnu.
+ * Un item défini sans @enchantmentlevel est de niveau 0 même si son nom finit par _LEVELn
+ * (T1_ALCHEMY_EXTRACT_LEVEL1, T1_FISHSAUCE_LEVEL1 : ID API sans « @ »).
+ */
+function resourceApiId(res: Raw, def?: Raw): string {
   const name = String(res['@uniquename']);
-  const lvlAttr = res['@enchantmentlevel'];
-  const level = lvlAttr !== undefined ? num(lvlAttr) : levelFromName(name);
+  const lvlAttr = res['@enchantmentlevel'] ?? def?.['@enchantmentlevel'];
+  const level = lvlAttr !== undefined ? num(lvlAttr) : def ? 0 : levelFromName(name);
   return toApiId(name, level);
 }
 
@@ -77,7 +82,10 @@ export function unsellableReason(uniquename: string, it: Raw | undefined): strin
   if (String(it['@tradable'] ?? '') === 'false') return 'tradable=false';
   if (it['@requiredaccesslevel'] !== undefined) return 'requiredaccesslevel';
   // Objets débloqués à l'équipement (récompenses, vanités) : non vendus à l'hôtel des ventes.
-  if (String(it['@unlockedtoequip'] ?? '') === 'true') return 'unlockedtoequip';
+  // Sauf nourriture et potions (@slottype food/potion, poissons crus compris) : tous portent
+  // @unlockedtoequip="true" dans items.json et se vendent pourtant normalement (générateur v4).
+  const slot = String(it['@slottype'] ?? '');
+  if (String(it['@unlockedtoequip'] ?? '') === 'true' && slot !== 'food' && slot !== 'potion') return 'unlockedtoequip';
   return null;
 }
 
@@ -87,8 +95,20 @@ export function unsellableReason(uniquename: string, it: Raw | undefined): strin
  * (ou n'en porte pas), pour que les nouveaux ID soient collectés dès le cycle suivant.
  * 2 : exclusion des non vendables, équipement @4, recettes alternatives (variant).
  * 3 : fermes des îles (champ `farming`, ID agricoles collectés), sources loot.json + farmingmodifiers.json.
+ * 4 : consommables (cuisine + alchimie, @0–@3, quantité produite @amountcrafted), poids `weight` dans meta.
  */
-export const GENERATOR_VERSION = 3;
+export const GENERATOR_VERSION = 4;
+
+/** Niveau d'enchantement maximal des consommables (nourriture et potions : @1 à @3). */
+export const MAX_CONSUMABLE_ENCHANT = 3;
+
+/** Sous-catégories de consommables retenues (@shopsubcategory1) → clé de bonus par défaut (@craftingcategory). */
+const CONSUMABLE_SUBCATEGORIES: Record<string, string> = { food: 'food', potions: 'potion' };
+
+/** Consommables événementiels ou uniques (récompenses, prototypes) : jamais crafés en ville ni vendus. */
+export function isEventConsumable(uniquename: string): boolean {
+  return uniquename.startsWith('UNIQUE_') || uniquename.includes('_EVENT_') || uniquename.includes('_PROTOTYPE');
+}
 
 /** Sources facultatives des fermes (loot.json, farmingmodifiers.json). */
 export interface FarmingSources {
@@ -175,7 +195,7 @@ export function buildRecipesReport(
   };
   const toInputs = (req: Raw): RecipeInput[] =>
     arr(req.craftresource as Raw | Raw[]).map((c) => ({
-      id: resourceApiId(c),
+      id: resourceApiId(c, items.get(String(c['@uniquename']))),
       qty: num(c['@count'], 1),
       returnable: String(c['@maxreturnamount'] ?? '') !== '0',
     }));
@@ -268,6 +288,47 @@ export function buildRecipesReport(
     }
   }
 
+  // --- Consommables : consumableitem, cuisine (food) et alchimie (potions), @0–@3 ---
+  // Les poissons crus (crafting/fish) n'ont pas de recette et ne sont que des ingrédients.
+  for (const it of arr(root.consumableitem as Raw | Raw[])) {
+    const name = String(it['@uniquename']);
+    if (String(it['@shopcategory'] ?? '') !== 'consumables') continue;
+    const subcategory = String(it['@shopsubcategory1'] ?? '');
+    const defaultKey = CONSUMABLE_SUBCATEGORIES[subcategory];
+    if (!defaultKey || isEventConsumable(name)) continue;
+    const common = {
+      kind: 'crafting' as const,
+      // Bonus de ville : @craftingcategory (food → Caerleon, potion → Brecilien dans craftingmodifiers.json).
+      bonusKey: String(it['@craftingcategory'] || defaultKey),
+      category: 'consumables',
+      subcategory,
+      tier: num(it['@tier']),
+    };
+    const consumableRecipe = (outputId: string, req: Raw, enchant: number) => {
+      const outputQty = num(req['@amountcrafted'], 1);
+      addRecipe({
+        outputId,
+        outputQty,
+        inputs: toInputs(req),
+        // Sans @itemvalue : valeur de l'item = Σ valeurs des ingrédients / quantité produite ;
+        // les frais de station portent sur tout ce qui est produit (même hypothèse que les variantes).
+        itemValue:
+          it['@itemvalue'] !== undefined ? num(it['@itemvalue']) * outputQty : requirementValue(req) * outputQty,
+        ...common,
+        enchant,
+      });
+    };
+    const baseReq = pickRequirement(it.craftingrequirements);
+    if (!baseReq) continue;
+    consumableRecipe(name, baseReq, 0);
+    for (const ench of arr(it.enchantments?.enchantment as Raw | Raw[])) {
+      const level = num(ench['@enchantmentlevel']);
+      if (level < 1 || level > MAX_CONSUMABLE_ENCHANT) continue;
+      const req = pickRequirement(ench.craftingrequirements);
+      if (req) consumableRecipe(toApiId(name, level), req, level);
+    }
+  }
+
   // --- Noms localisés ---
   const names = new Map<string, Raw | null>();
   for (const f of arr(formattedJson as Raw | Raw[])) {
@@ -291,7 +352,7 @@ export function buildRecipesReport(
     const en = loc?.['EN-US'];
     const fr = loc?.['FR-FR'];
     const tierMatch = /^T(\d+)_/.exec(base);
-    meta.push({
+    const m: ItemMeta = {
       id,
       nameFr: fr || en || id,
       nameEn: en || id,
@@ -299,7 +360,11 @@ export function buildRecipesReport(
       enchant: level,
       category: String(it?.['@shopcategory'] ?? ''),
       subcategory: String(it?.['@shopsubcategory1'] ?? ''),
-    });
+    };
+    // Poids unitaire (kg) : @weight de l'item de base (l'enchantement ne change pas le poids).
+    const weight = Number(it?.['@weight']);
+    if (it?.['@weight'] !== undefined && it['@weight'] !== '' && Number.isFinite(weight) && weight >= 0) m.weight = weight;
+    meta.push(m);
   }
 
   // --- Bonus de ville ---
@@ -414,6 +479,11 @@ async function main() {
   console.log(`Équipement @4 : ${file.recipes.filter((r) => r.kind === 'crafting' && r.enchant === 4).length}`);
   console.log('Par kind :', byKind);
   console.log('Par category :', byCat);
+  const consumables = file.recipes.filter((r) => r.category === 'consumables');
+  console.log(
+    `Consommables : ${consumables.length} (cuisine ${consumables.filter((r) => r.subcategory === 'food').length}, alchimie ${consumables.filter((r) => r.subcategory === 'potions').length})`,
+  );
+  console.log(`Poids renseignés : ${file.meta.filter((m) => m.weight !== undefined).length}/${file.meta.length}`);
   console.log(`Méta : ${file.meta.length} items ; noms FR : ${((100 * frOrSame) / file.meta.length).toFixed(2)} % (dont ${frCount} distincts de l'anglais)`);
   const missing = file.meta.filter((m) => m.nameFr === m.id).map((m) => m.id);
   if (missing.length) console.log(`Sans nom (${missing.length}) :`, missing.slice(0, 20).join(', '));

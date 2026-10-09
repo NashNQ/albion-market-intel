@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import {
   flexRender,
   getCoreRowModel,
@@ -8,10 +8,12 @@ import {
   type SortingState,
 } from '@tanstack/react-table';
 import { useVirtualizer } from '@tanstack/react-virtual';
-import type { ItemMeta, RouteResult } from '../../types';
-import { fmtAgeH, fmtInt, fmtSilver, itemHref, subcatLabel } from '../format';
+import { DEFAULT_SETTINGS, type ItemMeta, type RouteResult, type Settings } from '../../types';
+import { fmtInt, fmtPct, fmtSilver, itemHref, subcatLabel } from '../format';
+import { FavoriteButton } from './FavoriteButton';
 import { ItemIcon } from './ItemIcon';
-import { ConfidenceBar, RouteCell, routeText } from './Route';
+import { AgeBadge, ConfidenceBar, RouteCell, routeText } from './Route';
+import { RouteDetail } from './RouteDetail';
 
 export const VIRTUAL_THRESHOLD = 200;
 const ROW_H = 44;
@@ -21,17 +23,53 @@ interface Props {
   metaById: Map<string, ItemMeta>;
   variant: 'ranked' | 'black-market';
   caption: string;
+  /** Réglages courants (détail des calculs, seuils d'âge). Défaut : DEFAULT_SETTINGS. */
+  settings?: Settings;
 }
+
+/** Aide des en-têtes (infobulles + légende « Comment lire ce classement ? »). */
+export function columnHelp(s: Settings): Record<string, string> {
+  return {
+    profit: 'Vente moins taxes, achats d’ingrédients (après retour de ressources) et frais de station, pour une unité.',
+    volume: 'Nombre médian d’unités vendues par jour sur 7 jours au lieu de vente, tous vendeurs confondus.',
+    q: `Ce que vous pouvez vendre par jour : ventes du marché × votre part (${fmtPct(s.marketShare)}), plafonné à ${fmtInt(s.dailyCap)}/jour.`,
+    c: 'Fiabilité des prix (0 à 1) : baisse avec l’âge des prix, un historique mince, un prix estimé ou périmé.',
+    score: 'Profit/unité × ventes possibles/jour × confiance : l’argent espéré par jour, ajusté selon la fiabilité. C’est le critère de classement.',
+    age: `Âge du prix le plus vieux utilisé. Vert : moins d’1 h ; normal : moins de ${fmtInt(s.maxPriceAgeH)} h ; ambre : périmé ; gris : 24 h ou plus.`,
+  };
+}
+
+const detailId = (rowId: string) => `rd-${rowId.replace(/[^A-Za-z0-9_-]/g, '_')}`;
 
 const nameOf = (r: RouteResult, meta: Map<string, ItemMeta>) => meta.get(r.recipe.outputId)?.nameFr ?? r.recipe.outputId;
 
-export function RouteTable({ rows, metaById, variant, caption }: Props) {
+export function RouteTable({ rows, metaById, variant, caption, settings = DEFAULT_SETTINGS }: Props) {
   const [sorting, setSorting] = useState<SortingState>(
     variant === 'ranked' ? [{ id: 'score', desc: true }] : [{ id: 'profit', desc: true }],
   );
+  const [open, setOpen] = useState<ReadonlySet<string>>(() => new Set());
+  const toggleOpen = useCallback((id: string) => {
+    setOpen((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }, []);
+  const help = useMemo(() => columnHelp(settings), [settings]);
+  const maxAge = settings.maxPriceAgeH;
 
   const columns = useMemo<ColumnDef<RouteResult>[]>(() => {
     const cols: ColumnDef<RouteResult>[] = [
+      {
+        id: 'fav',
+        header: () => <span className="sr-only">Favori</span>,
+        enableSorting: false,
+        cell: ({ row }) => (
+          <FavoriteButton id={row.original.recipe.outputId} name={nameOf(row.original, metaById)} />
+        ),
+        meta: { cls: 'c-fav' },
+      },
       {
         id: 'name',
         header: 'Objet',
@@ -86,58 +124,64 @@ export function RouteTable({ rows, metaById, variant, caption }: Props) {
         header: 'Profit/unité',
         accessorFn: (r) => r.unitProfit,
         cell: ({ getValue }) => <span className="profit">{fmtSilver(getValue<number>())}</span>,
-        meta: { cls: 'c-profit num' },
+        meta: { cls: 'c-profit num', title: help.profit },
       },
     ];
     if (variant === 'ranked') {
       cols.push(
         {
           id: 'volume',
-          header: 'Volume/jour',
+          header: 'Ventes/jour (marché)',
           accessorFn: (r) => r.volume ?? undefined,
           sortUndefined: 'last',
           cell: ({ row }) => fmtInt(row.original.volume),
-          meta: { cls: 'c-vol num secondary', title: 'Volume médian vendu par jour sur 7 jours au lieu de vente' },
+          meta: { cls: 'c-vol num secondary', title: help.volume },
         },
         {
           id: 'q',
-          header: 'Q',
+          header: 'Vous vendez/jour',
           accessorFn: (r) => r.q ?? undefined,
           sortUndefined: 'last',
-          cell: ({ row }) => fmtInt(row.original.q),
-          meta: { cls: 'c-q num secondary', title: 'Quantité écoulable par jour' },
+          cell: ({ row }) =>
+            row.original.q == null ? '—' : <span title={`Vous pouvez vendre ≈ ${fmtInt(row.original.q)}/jour`}>≈ {fmtInt(row.original.q)}</span>,
+          meta: { cls: 'c-q num secondary', title: help.q },
         },
       );
     }
     cols.push({
       id: 'c',
-      header: 'C',
+      header: 'Confiance',
       accessorFn: (r) => r.confidence,
       cell: ({ row }) => <ConfidenceBar c={row.original.confidence} />,
-      meta: { cls: 'c-conf', title: 'Confiance selon l’âge des prix' },
+      meta: { cls: 'c-conf', title: help.c },
     });
     if (variant === 'ranked') {
       cols.push({
         id: 'score',
-        header: 'Score',
+        header: 'Profit/jour estimé',
         accessorFn: (r) => r.score ?? undefined,
         sortUndefined: 'last',
-        cell: ({ row }) => <strong className="score">{fmtInt(row.original.score)}</strong>,
-        meta: { cls: 'c-score num', title: 'Profit × Q × C : argent espéré par jour' },
+        cell: ({ row }) => <strong className="score">{fmtSilver(row.original.score)}</strong>,
+        meta: { cls: 'c-score num', title: help.score },
       });
     }
     cols.push({
       id: 'age',
-      header: 'Âge',
+      header: 'Âge des prix',
       accessorFn: (r) => r.oldestPriceAgeH,
-      cell: ({ row }) => {
-        const h = row.original.oldestPriceAgeH;
-        return <span className={h > 3 ? 'age age-old' : 'age'}>{fmtAgeH(h)}</span>;
-      },
-      meta: { cls: 'c-age num secondary', title: 'Âge du prix le plus vieux utilisé' },
+      cell: ({ row }) => <AgeBadge h={row.original.oldestPriceAgeH} maxH={maxAge} />,
+      meta: { cls: 'c-age num secondary', title: help.age },
+    });
+    cols.push({
+      id: 'detail',
+      header: () => <span className="sr-only">Détail du calcul</span>,
+      enableSorting: false,
+      // Rendu dans la boucle du corps (dépend de l'état « ouvert », hors des définitions de colonnes).
+      cell: () => null,
+      meta: { cls: 'c-detail' },
     });
     return cols;
-  }, [metaById, variant]);
+  }, [metaById, variant, help, maxAge]);
 
   const table = useReactTable({
     data: rows,
@@ -170,13 +214,14 @@ export function RouteTable({ rows, metaById, variant, caption }: Props) {
       <p className="empty-table">
         Aucune route rentable ne passe les filtres. Élargissez l’âge maximal des prix, baissez le volume minimum ou
         retirez un filtre.
+        {!settings.showStale && ' Vous pouvez aussi afficher les opportunités aux prix périmés.'}
       </p>
     );
   }
 
   return (
     <div className={virtual ? 'table-scroll is-virtual' : 'table-scroll'} ref={scrollRef} tabIndex={0} aria-label={caption}>
-      <table className="routes">
+      <table className="routes routes-grouped">
         <caption className="sr-only">{caption}</caption>
         <thead>
           {table.getHeaderGroups().map((hg) => (
@@ -190,6 +235,7 @@ export function RouteTable({ rows, metaById, variant, caption }: Props) {
                     key={h.id}
                     scope="col"
                     className={meta.cls}
+                    title={meta.title}
                     aria-sort={sorted === 'asc' ? 'ascending' : sorted === 'desc' ? 'descending' : canSort ? 'none' : undefined}
                   >
                     {canSort ? (
@@ -213,30 +259,66 @@ export function RouteTable({ rows, metaById, variant, caption }: Props) {
             </tr>
           ))}
         </thead>
-        <tbody>
-          {padTop > 0 && (
-            <tr aria-hidden="true" className="spacer">
+        {padTop > 0 && (
+          <tbody aria-hidden="true">
+            <tr className="spacer">
               <td colSpan={colCount} style={{ height: padTop }} />
             </tr>
-          )}
-          {visible.map((row) => (
-            <tr key={row.id}>
-              {row.getVisibleCells().map((cell) => {
-                const meta = (cell.column.columnDef.meta ?? {}) as { cls?: string };
-                return (
-                  <td key={cell.id} className={meta.cls}>
-                    {flexRender(cell.column.columnDef.cell, cell.getContext())}
+          </tbody>
+        )}
+        {visible.map((row, i) => {
+          const isOpen = open.has(row.id);
+          return (
+            // Une ligne + son détail par <tbody> : le virtualiseur mesure le groupe entier.
+            <tbody
+              key={row.id}
+              className={isOpen ? 'r-group is-open' : 'r-group'}
+              data-index={virtual ? vItems[i].index : undefined}
+              ref={virtual ? virtualizer.measureElement : undefined}
+            >
+              <tr className={row.original.flags.includes('stale') ? 'is-stale' : undefined}>
+                {row.getVisibleCells().map((cell) => {
+                  const meta = (cell.column.columnDef.meta ?? {}) as { cls?: string };
+                  return (
+                    <td key={cell.id} className={meta.cls}>
+                      {cell.column.id === 'detail' ? (
+                        <button
+                          type="button"
+                          className={isOpen ? 'detail-btn is-open' : 'detail-btn'}
+                          aria-expanded={isOpen}
+                          aria-controls={isOpen ? detailId(row.id) : undefined}
+                          title={isOpen ? 'Masquer le détail du calcul' : 'Pourquoi ce classement ? Afficher le détail du calcul'}
+                          onClick={() => toggleOpen(row.id)}
+                        >
+                          <span className="sr-only">{`Détail du calcul : ${nameOf(row.original, metaById)}`}</span>
+                          <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true" focusable="false">
+                            <path d="M5.5 3.5 10 8l-4.5 4.5" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+                          </svg>
+                        </button>
+                      ) : (
+                        flexRender(cell.column.columnDef.cell, cell.getContext())
+                      )}
+                    </td>
+                  );
+                })}
+              </tr>
+              {isOpen && (
+                <tr className="detail-row">
+                  <td colSpan={colCount}>
+                    <RouteDetail r={row.original} settings={settings} id={detailId(row.id)} />
                   </td>
-                );
-              })}
-            </tr>
-          ))}
-          {padBottom > 0 && (
-            <tr aria-hidden="true" className="spacer">
+                </tr>
+              )}
+            </tbody>
+          );
+        })}
+        {padBottom > 0 && (
+          <tbody aria-hidden="true">
+            <tr className="spacer">
               <td colSpan={colCount} style={{ height: padBottom }} />
             </tr>
-          )}
-        </tbody>
+          </tbody>
+        )}
       </table>
     </div>
   );

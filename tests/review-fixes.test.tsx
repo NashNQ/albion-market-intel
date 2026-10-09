@@ -62,7 +62,7 @@ describe('M2 : valeurs nulles triées en fin', () => {
     ];
     const meta = new Map(rows.map((r) => [r.recipe.outputId, { id: r.recipe.outputId, nameFr: r.recipe.outputId, nameEn: '', tier: 4, enchant: 0, category: '', subcategory: '' }]));
     render(<RouteTable rows={rows} metaById={meta} variant="ranked" caption="t" />);
-    const header = screen.getByRole('columnheader', { name: /Volume/ });
+    const header = screen.getByRole('columnheader', { name: /Ventes\/jour \(marché\)/ });
     const order = () => [...document.querySelectorAll('tbody .item-name')].map((n) => n.textContent);
     fireEvent.click(header.querySelector('button') ?? header);
     expect(order().at(-1)).toBe('NUL');

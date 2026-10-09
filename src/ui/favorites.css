@@ -1,0 +1,171 @@
+/* Favoris : étoile partagée (classements, fiche) et page #/favoris. */
+
+/* ---------- Étoile ---------- */
+.fav-btn {
+  display: inline-grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--faint);
+  cursor: pointer;
+  transition:
+    color var(--dur-fast) var(--ease-out),
+    transform var(--dur-fast) var(--ease-out);
+}
+.fav-btn.fav-md {
+  width: 34px;
+  height: 34px;
+}
+.fav-star {
+  fill: transparent;
+  stroke: currentColor;
+  stroke-width: 1.7;
+  stroke-linejoin: round;
+  transition: fill var(--dur-fast) var(--ease-out);
+}
+.fav-btn.is-on {
+  color: var(--accent);
+}
+.fav-btn.is-on .fav-star {
+  fill: currentColor;
+}
+.fav-btn:active:not(:disabled) {
+  transform: var(--press);
+}
+.fav-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.4;
+}
+.fav-btn:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 1px;
+}
+@media (hover: hover) and (pointer: fine) {
+  .fav-btn:hover:not(:disabled) {
+    color: var(--accent);
+  }
+}
+/* Petite impulsion à l'ajout (< 200 ms). */
+@media (prefers-reduced-motion: no-preference) {
+  .fav-btn.is-on svg {
+    animation: fav-pop 180ms var(--ease-out);
+  }
+}
+@keyframes fav-pop {
+  from {
+    transform: scale(0.8);
+  }
+  to {
+    transform: scale(1);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .fav-btn,
+  .fav-star {
+    transition: none;
+  }
+  .fav-btn:active:not(:disabled) {
+    transform: none;
+  }
+}
+
+/* ---------- Page Favoris ---------- */
+.fav-empty {
+  padding: 22px;
+  border: 1px dashed var(--line-strong);
+  border-radius: 8px;
+  color: var(--muted);
+  max-width: 68ch;
+}
+.fav-empty strong {
+  color: var(--text);
+}
+.fav-empty-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 14px 0 0;
+}
+.fav-empty-links .btn {
+  text-decoration: none;
+}
+
+.fav-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 340px), 1fr));
+  gap: 12px;
+}
+.fav-card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+}
+.fav-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+.fav-head .item-link {
+  min-width: 0;
+  flex: 1 1 auto;
+}
+.fav-head .item-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.fav-remove {
+  margin-left: auto;
+  flex: none;
+}
+.fav-facts {
+  margin: 0;
+  display: grid;
+  gap: 6px;
+}
+.fav-facts > div {
+  display: grid;
+  grid-template-columns: 9.5em 1fr;
+  gap: 8px;
+  align-items: baseline;
+}
+.fav-facts dt {
+  font-size: 12.5px;
+  color: var(--muted);
+  font-weight: 600;
+}
+.fav-facts dd {
+  margin: 0;
+  min-width: 0;
+}
+.fav-quote,
+.fav-route {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+  font-variant-numeric: tabular-nums;
+}
+.fav-more {
+  align-self: flex-start;
+  font-size: 13px;
+  color: var(--accent);
+}
+@media (max-width: 640px) {
+  .fav-facts > div {
+    grid-template-columns: 1fr;
+    gap: 2px;
+  }
+}

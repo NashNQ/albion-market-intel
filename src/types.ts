@@ -76,6 +76,8 @@ export interface ItemMeta {
   enchant: number;
   category: string;
   subcategory: string;
+  /** Poids unitaire en kg (@weight, générateur ≥ 4). */
+  weight?: number;
 }
 
 /** Bonus de production par lieu, tirés de craftingmodifiers.json. */
@@ -110,6 +112,8 @@ export interface Settings {
   minVolume: number;
   /** Repli « prix estimé » : moyenne 7 jours du même lieu quand le prix récent manque. */
   historyFallback: boolean;
+  /** Afficher les routes qui n'existent que grâce à des prix plus vieux que maxPriceAgeH (drapeau 'stale'). */
+  showStale: boolean;
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -123,6 +127,7 @@ export const DEFAULT_SETTINGS: Settings = {
   maxPriceAgeH: 6,
   minVolume: 20,
   historyFallback: false,
+  showStale: false,
 };
 
 export type DataStatus = 'fresh' | 'stale' | 'error'; // stale = updatedAt > 30 min
@@ -141,7 +146,7 @@ export interface RouteResult {
   confidence: number; // C
   score: number | null; // null pour le Black Market
   oldestPriceAgeH: number;
-  flags: ('red-zone' | 'mists' | 'suspect' | 'thin-history' | 'estimated')[];
+  flags: ('red-zone' | 'mists' | 'suspect' | 'thin-history' | 'estimated' | 'stale')[];
 }
 
 export interface RankingRow extends RouteResult {}

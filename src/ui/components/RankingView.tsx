@@ -4,7 +4,7 @@ import { useAppData } from '../context';
 import { fmtInt, plural } from '../format';
 import type { RankStatsView } from '../context';
 import { applyFilters, EMPTY_FILTERS, Filters, type FilterState } from './Filters';
-import { RouteTable } from './RouteTable';
+import { RouteTable, columnHelp } from './RouteTable';
 import { SettingsForm } from './SettingsForm';
 
 interface Props {
@@ -38,6 +38,41 @@ export function StatsLine({ scope = 'global' }: { scope?: 'global' | 'black-mark
   return <p className="stats-line">{parts.join(' · ')}</p>;
 }
 
+/** Légende dépliable des colonnes (aide accessible au toucher et au clavier, contrairement aux infobulles). */
+function MetricsHelp({ variant }: { variant: 'ranked' | 'black-market' }) {
+  const { settings } = useAppData();
+  const h = columnHelp(settings);
+  return (
+    <details className="metrics-help">
+      <summary>Comment lire ce classement ?</summary>
+      <dl>
+        <dt>Profit/unité</dt>
+        <dd>{h.profit}</dd>
+        {variant === 'ranked' && (
+          <>
+            <dt>Ventes/jour (marché)</dt>
+            <dd>{h.volume}</dd>
+            <dt>Vous vendez/jour</dt>
+            <dd>{h.q}</dd>
+          </>
+        )}
+        <dt>Confiance</dt>
+        <dd>{h.c}</dd>
+        {variant === 'ranked' && (
+          <>
+            <dt>Profit/jour estimé</dt>
+            <dd>{h.score}</dd>
+          </>
+        )}
+        <dt>Âge des prix</dt>
+        <dd>{h.age}</dd>
+        <dt>Détail ›</dt>
+        <dd>Le bouton en fin de ligne explique le calcul en phrases : marge, quantité à produire, capital et raisons de la confiance.</dd>
+      </dl>
+    </details>
+  );
+}
+
 export function RankingView({ title, intro, rows, variant, notice }: Props) {
   const { metaById, settings, updateSettings, resetSettings } = useAppData();
   const [filters, setFilters] = useState<FilterState>(EMPTY_FILTERS);
@@ -57,17 +92,25 @@ export function RankingView({ title, intro, rows, variant, notice }: Props) {
           <span className="qs-summary">
             {settings.premium ? 'Premium' : 'Sans premium'} · {settings.focus ? 'avec focus' : 'sans focus'} ·{' '}
             {settings.mode === 'instant' ? 'instantané' : 'ordres'} · {`prix de moins de ${settings.maxPriceAgeH} h`}
+            {settings.showStale ? ' · prix périmés affichés' : ''}
           </span>
         </summary>
         <SettingsForm settings={settings} update={updateSettings} reset={resetSettings} compact />
       </details>
-      <Filters rows={rows} value={filters} onChange={setFilters} />
+      <Filters
+        rows={rows}
+        value={filters}
+        onChange={setFilters}
+        showStale={settings.showStale}
+        onShowStale={(b) => updateSettings({ showStale: b })}
+      />
       <p className="row-count" aria-live="polite">
         {filtered.length === rows.length
           ? plural(rows.length, 'route rentable')
           : `${plural(filtered.length, 'route affichée')} sur ${fmtInt(rows.length)}`}
       </p>
-      <RouteTable rows={filtered} metaById={metaById} variant={variant} caption={title} />
+      <MetricsHelp variant={variant} />
+      <RouteTable rows={filtered} metaById={metaById} variant={variant} caption={title} settings={settings} />
     </section>
   );
 }

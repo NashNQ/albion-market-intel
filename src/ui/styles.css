@@ -590,6 +590,20 @@ th[aria-sort='descending'] .sort-ind {
 .age-old {
   color: var(--warn);
 }
+/* Âge d'un prix — code couleur unique (ageTone, format.ts). */
+.age-t-fresh { color: var(--profit); }
+.age-t-ok { color: var(--text); }
+.age-t-stale { color: var(--warn); font-weight: 600; }
+.age-t-old { color: var(--faint); }
+.age-tag {
+  margin-left: 5px;
+  padding: 0 5px;
+  border-radius: 999px;
+  border: 1px solid currentColor;
+  font-size: 10.5px;
+  font-weight: 600;
+  vertical-align: 1px;
+}
 
 /* Route : la signature visuelle — chaque ville porte son blason. */
 .route {
@@ -656,6 +670,136 @@ th[aria-sort='descending'] .sort-ind {
 .flag-thin-history { color: var(--warn); }
 .flag-suspect { color: var(--warn); }
 .flag-estimated { color: var(--muted); border-style: dashed; }
+.flag-stale {
+  color: var(--warn);
+  background: color-mix(in srgb, var(--warn) 12%, transparent);
+}
+/* Ligne qui n'existe que grâce à des prix périmés : légèrement en retrait. */
+.routes tr.is-stale .profit,
+.routes tr.is-stale .score {
+  opacity: 0.8;
+}
+
+/* Une ligne + son détail par <tbody> : bordures entre groupes, pas à l'intérieur. */
+.routes-grouped tbody.r-group tr td {
+  border-bottom: 1px solid var(--line);
+}
+.routes-grouped tbody.r-group.is-open > tr:first-child td {
+  border-bottom-color: transparent;
+}
+.routes-grouped tbody.r-group:last-of-type tr:last-child td {
+  border-bottom: 0;
+}
+.routes .c-fav,
+.routes .c-detail {
+  width: 1%;
+  padding-left: 4px;
+  padding-right: 4px;
+}
+.detail-btn {
+  display: inline-grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  transition:
+    color var(--dur-fast) var(--ease-out),
+    border-color var(--dur-fast) var(--ease-out),
+    transform var(--dur-fast) var(--ease-out);
+}
+.detail-btn svg {
+  transition: transform var(--dur) var(--ease-out);
+}
+.detail-btn.is-open {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+.detail-btn.is-open svg {
+  transform: rotate(90deg);
+}
+.detail-btn:active {
+  transform: var(--press);
+}
+@media (hover: hover) and (pointer: fine) {
+  .detail-btn:hover {
+    color: var(--text);
+    border-color: var(--line-strong);
+  }
+}
+.detail-row > td {
+  white-space: normal;
+  background: var(--surface-2);
+  padding: 10px 14px 12px 46px;
+}
+.route-detail {
+  max-width: 78ch;
+  font-size: 13.5px;
+  line-height: 1.5;
+  color: var(--muted);
+}
+.route-detail p {
+  margin: 0 0 4px;
+}
+.route-detail strong {
+  color: var(--text);
+}
+.rd-level-hi { color: var(--profit) !important; }
+.rd-level-mid { color: var(--warn) !important; }
+.rd-level-lo { color: var(--danger) !important; }
+@media (prefers-reduced-motion: no-preference) {
+  .route-detail {
+    animation: rd-in var(--dur) var(--ease-out);
+  }
+}
+@keyframes rd-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+}
+
+/* Légende « Comment lire ce classement ? » */
+.metrics-help {
+  margin: 10px 0 0;
+  font-size: 13px;
+  color: var(--muted);
+}
+.metrics-help > summary {
+  cursor: pointer;
+  color: var(--accent);
+  font-weight: 600;
+  width: fit-content;
+}
+.metrics-help dl {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 4px 14px;
+  margin: 8px 0 4px;
+  max-width: 96ch;
+}
+.metrics-help dt {
+  font-weight: 700;
+  color: var(--text);
+}
+.metrics-help dd {
+  margin: 0;
+}
+@media (max-width: 640px) {
+  .metrics-help dl {
+    grid-template-columns: 1fr;
+  }
+  .metrics-help dd {
+    margin-bottom: 6px;
+  }
+  .detail-row > td {
+    padding-left: 10px;
+  }
+}
 
 /* Cellule objet : nom + petite ligne (catégorie, variante, route sur mobile). */
 .item-cell {
@@ -1008,7 +1152,8 @@ table.plain tbody th {
   .btn-ghost:active,
   .seg:active,
   .sort-btn:active,
-  .theme-btn:active {
+  .theme-btn:active,
+  .detail-btn:active {
     transform: none;
   }
   .tab::after {

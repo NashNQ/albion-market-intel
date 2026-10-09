@@ -25,6 +25,7 @@ export function sanitizeSettings(raw: unknown): Settings {
   if (num(r.maxPriceAgeH)) s.maxPriceAgeH = clamp(r.maxPriceAgeH, 1, 48);
   if (num(r.minVolume)) s.minVolume = Math.max(0, r.minVolume);
   if (typeof r.historyFallback === 'boolean') s.historyFallback = r.historyFallback;
+  if (typeof r.showStale === 'boolean') s.showStale = r.showStale;
   return s;
 }
 

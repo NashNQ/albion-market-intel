@@ -43,10 +43,15 @@ export function Filters({
   rows,
   value,
   onChange,
+  showStale,
+  onShowStale,
 }: {
   rows: RouteResult[];
   value: FilterState;
   onChange: (f: FilterState) => void;
+  /** Bascule rapide du réglage showStale (affichée seulement si onShowStale est fourni). */
+  showStale?: boolean;
+  onShowStale?: (b: boolean) => void;
 }) {
   const id = useId();
   // Sous-catégories regroupées par catégorie, libellés français (repli sur l'ID brut).
@@ -126,6 +131,17 @@ export function Filters({
         />
         <span>Exclure la zone rouge</span>
       </label>
+      {onShowStale && (
+        <label className="f-check f-stale" htmlFor={`${id}-stale`} title="Réglage enregistré : inclut les routes calculées avec des prix plus vieux que l’âge maximal (confiance divisée par deux).">
+          <input
+            id={`${id}-stale`}
+            type="checkbox"
+            checked={!!showStale}
+            onChange={(e) => onShowStale(e.target.checked)}
+          />
+          <span>Afficher les opportunités aux prix périmés</span>
+        </label>
+      )}
       {active && (
         <button type="button" className="btn-ghost" onClick={() => onChange(EMPTY_FILTERS)}>
           Effacer les filtres

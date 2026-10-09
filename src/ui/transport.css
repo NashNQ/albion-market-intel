@@ -1,0 +1,162 @@
+/* Page Transport — réutilise les jetons de styles.css (couleurs, --ease-out, --dur, --press). */
+
+.tp-page {
+  min-width: 0;
+}
+
+.tp-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 14px;
+  align-items: flex-end;
+  padding: 12px 14px;
+  margin: 4px 0 6px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+.tp-field {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+div.tp-field {
+  flex-direction: row;
+  align-items: flex-end;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.tp-field .num-input input {
+  width: 100px;
+}
+.tp-search input {
+  width: 220px;
+}
+.tp-seg .seg {
+  padding: 5px 10px;
+  min-height: 32px;
+}
+.tp-checks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+  flex-basis: 100%;
+}
+.tp-checks .f-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 32px;
+  cursor: pointer;
+}
+
+/* Tableau : le défilement horizontal reste dans son conteneur. */
+.tp-scroll {
+  max-width: 100%;
+}
+.tp-table td {
+  vertical-align: middle;
+}
+.tp-row {
+  cursor: pointer;
+  transition: background-color var(--dur-fast) var(--ease-out);
+}
+.tp-row:active {
+  background: var(--row-hover);
+}
+.tp-c-name {
+  min-width: 200px;
+}
+.tp-item {
+  gap: 8px;
+}
+.tp-item-text {
+  display: inline-flex;
+  flex-direction: column;
+  line-height: 1.2;
+  min-width: 0;
+}
+.tp-leg {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+}
+.tp-leg .loc {
+  align-self: center;
+}
+.tp-leg-price {
+  font-weight: 600;
+}
+.tp-leg-age {
+  font-size: 12px;
+  color: var(--faint);
+}
+.tp-leg-age.age-old {
+  color: var(--warn);
+}
+.tp-day {
+  font-weight: 800;
+  color: var(--profit);
+}
+.tp-flag-red-zone { color: var(--danger); }
+.tp-flag-mists { color: var(--bre); }
+.tp-flag-suspect { color: var(--warn); }
+.tp-flag-stale { color: var(--muted); border-style: dashed; }
+
+.tp-empty p {
+  margin: 0 0 10px;
+  max-width: 70ch;
+}
+.tp-empty p:last-child {
+  margin-bottom: 0;
+}
+.tp-more {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 10px 0 0;
+  font-size: 13px;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .tp-row:hover {
+    background: var(--row-hover);
+  }
+}
+
+@media (max-width: 640px) {
+  .tp-filters {
+    padding: 10px 12px;
+  }
+  .tp-search {
+    flex-basis: 100%;
+  }
+  .tp-search input {
+    width: 100%;
+  }
+  .tp-field .num-input input {
+    width: 84px;
+  }
+  .tp-table th,
+  .tp-table td {
+    padding: 5px 6px;
+  }
+  .tp-c-name {
+    min-width: 0;
+  }
+  .tp-item .item-icon {
+    width: 22px;
+    height: 22px;
+  }
+  .tp-item .item-name {
+    max-width: 16ch;
+    white-space: normal;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tp-row {
+    transition: none;
+  }
+}

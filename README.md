@@ -28,6 +28,8 @@ GitHub Actions (gratuit)                    Netlify (plan Free)            Navig
 - Q = min(médiane des ventes/jour sur 7 j × part de marché, plafond) ; C = confiance 0,5–1 selon l'âge des prix et l'historique.
 - **Score = profit × Q × C.** Le Black Market est classé à part (par profit, avec au moins une vente sur 7 j).
 
+Périmètre (générateur v4) : raffinage, équipement @0–@4, consommables de **cuisine** et d'**alchimie** @0–@3 (bonus Caerleon / Brecilien, quantités produites 5–10 par craft), poids des objets dans `meta`.
+
 Règles de données : prix à 0 ou daté `0001-01-01` = absent ; prix plus vieux que 6 h exclus (réglable) ; prix > 3× la moyenne 7 j (vente) ou < 1/3 (achat) = suspect, exclu.
 
 ## Développement

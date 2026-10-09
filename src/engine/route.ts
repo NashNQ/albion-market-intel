@@ -21,12 +21,18 @@ export interface LocatedQuote {
   ageH: number;
   /** Prix estimé (moyenne 7 jours du lieu) faute de prix récent valide — repli historyFallback. */
   estimated?: boolean;
+  /** Prix réel mais plus vieux que maxPriceAgeH — repli showStale. */
+  stale?: boolean;
 }
 
 /** Jours d'historique minimum pour utiliser la moyenne 7 jours comme prix estimé. */
 export const FALLBACK_MIN_HISTORY_DAYS = 3;
 /** Plafond de confiance d'une route qui utilise au moins un prix estimé. */
 export const ESTIMATED_MAX_CONFIDENCE = 0.6;
+/** Facteur appliqué à la confiance d'une route qui n'existe que grâce à des prix périmés. */
+export const STALE_CONFIDENCE_FACTOR = 0.5;
+/** Âge au-delà duquel un prix est ignoré même avec showStale (7 jours). */
+export const STALE_MAX_AGE_H = 168;
 
 /** Moyenne 7 jours utilisable comme prix estimé au lieu `loc`, ou null. */
 export function estimatedPrice(item: MarketItem, loc: Location): number | null {
@@ -60,9 +66,10 @@ const SELL_LOCATIONS = LOCATIONS.filter((l) => l !== 'Black Market');
 /** Pré-calcule, pour chaque item, le meilleur achat valide et les ventes par lieu. */
 export function buildPriceIndex(snapshot: MarketSnapshot, settings: Settings, now: Date): PriceIndex {
   const index: PriceIndex = new Map();
-  const { mode, maxPriceAgeH, historyFallback } = settings;
+  const { mode, maxPriceAgeH, historyFallback, showStale } = settings;
   for (const item of snapshot.items) {
     let bestBuy: LocatedQuote | null = null;
+    let staleBuy: LocatedQuote | null = null;
     let hasAnyPrice = false;
     for (const loc of PRODUCTION_LOCATIONS) {
       const p = item.prices?.[loc];
@@ -71,6 +78,11 @@ export function buildPriceIndex(snapshot: MarketSnapshot, settings: Settings, no
       const q = buyQuote(p, mode, now, maxPriceAgeH);
       if (q && isSuspectLow(q.price, item, loc)) continue; // ordre piège très bas
       if (q && (!bestBuy || q.price < bestBuy.price)) bestBuy = { loc, price: q.price, ageH: q.ageH };
+      if (!q && showStale) {
+        const sq = buyQuote(p, mode, now, STALE_MAX_AGE_H);
+        if (sq && !isSuspectLow(sq.price, item, loc) && (!staleBuy || sq.price < staleBuy.price))
+          staleBuy = { loc, price: sq.price, ageH: sq.ageH, stale: true };
+      }
     }
     // Repli : aucun prix d'achat récent valide → moyenne 7 jours du lieu (prix estimé).
     if (!bestBuy && historyFallback) {
@@ -81,21 +93,31 @@ export function buildPriceIndex(snapshot: MarketSnapshot, settings: Settings, no
         if (!bestBuy || price < bestBuy.price) bestBuy = { loc, price, ageH: 0, estimated: true };
       }
     }
+    // Repli prix périmés : uniquement si ni prix récent ni prix estimé.
+    if (!bestBuy && staleBuy) bestBuy = staleBuy;
     const sells: SellCandidate[] = [];
     const estimatedSells: SellCandidate[] = [];
+    const staleSells: SellCandidate[] = [];
     for (const loc of SELL_LOCATIONS) {
       const q = sellQuote(item.prices?.[loc], mode, now, maxPriceAgeH);
       if (q) sells.push({ loc, price: q.price, ageH: q.ageH, net: unitRevenue(q.price, settings) });
-      else if (historyFallback) {
-        // Repli : pas de prix de vente récent valide dans ce lieu → moyenne 7 jours du même lieu.
-        const avg = estimatedPrice(item, loc);
-        if (avg != null) estimatedSells.push({ loc, price: avg, ageH: 0, net: unitRevenue(avg, settings), estimated: true });
+      else {
+        if (historyFallback) {
+          // Repli : pas de prix de vente récent valide dans ce lieu → moyenne 7 jours du même lieu.
+          const avg = estimatedPrice(item, loc);
+          if (avg != null) estimatedSells.push({ loc, price: avg, ageH: 0, net: unitRevenue(avg, settings), estimated: true });
+        }
+        if (showStale) {
+          const sq = sellQuote(item.prices?.[loc], mode, now, STALE_MAX_AGE_H);
+          if (sq) staleSells.push({ loc, price: sq.price, ageH: sq.ageH, net: unitRevenue(sq.price, settings), stale: true });
+        }
       }
     }
     sells.sort((a, b) => b.net - a.net);
-    // Les prix récents restent prioritaires : les estimés ne servent que si aucun récent ne passe les filtres.
+    // Les prix récents restent prioritaires : les estimés puis les périmés ne servent que si aucun récent ne passe les filtres.
     estimatedSells.sort((a, b) => b.net - a.net);
-    sells.push(...estimatedSells);
+    staleSells.sort((a, b) => b.net - a.net);
+    sells.push(...estimatedSells, ...staleSells);
     const bmP = item.prices?.['Black Market'];
     if (bmP && ((bmP.sell ?? 0) > 0 || (bmP.buy ?? 0) > 0)) hasAnyPrice = true;
     const bq = sellQuote(bmP, mode, now, maxPriceAgeH, true);
@@ -106,6 +128,10 @@ export function buildPriceIndex(snapshot: MarketSnapshot, settings: Settings, no
       const avg = estimatedPrice(item, 'Black Market');
       if (avg != null)
         blackMarket = { loc: 'Black Market', price: avg, ageH: 0, net: unitRevenue(avg, settings, true), estimated: true };
+    }
+    if (!blackMarket && showStale) {
+      const sq = sellQuote(bmP, mode, now, STALE_MAX_AGE_H, true);
+      if (sq) blackMarket = { loc: 'Black Market', price: sq.price, ageH: sq.ageH, net: unitRevenue(sq.price, settings, true), stale: true };
     }
     index.set(item.id, { item, bestBuy, hasAnyPrice, sells, blackMarket });
   }
@@ -166,12 +192,14 @@ export function bestRoute(
   const buyFrom: Partial<Record<string, Location>> = {};
   let oldestIngredient = 0;
   let estimated = false;
+  let stale = false;
   for (let i = 0; i < recipe.inputs.length; i++) {
     const inp = recipe.inputs[i];
     const ip = index.get(inp.id);
     if (!ip || !ip.bestBuy) return { ok: false, reason: ip?.hasAnyPrice ? 'stale' : 'missing' };
     buyPrices[i] = ip.bestBuy.price;
     buyFrom[inp.id] = ip.bestBuy.loc;
+    if (ip.bestBuy.stale) stale = true;
     if (ip.bestBuy.estimated) estimated = true;
     else if (ip.bestBuy.ageH > oldestIngredient) oldestIngredient = ip.bestBuy.ageH;
   }
@@ -222,6 +250,7 @@ export function bestRoute(
 
   const flags: RouteResult['flags'] = [];
   if (chosen.estimated) estimated = true;
+  if (chosen.stale) stale = true;
   // L'âge d'un prix estimé n'a pas de sens : seuls les prix récents comptent pour l'âge.
   const oldest = Math.max(oldestIngredient, chosen.estimated ? 0 : chosen.ageH);
   let c = confidence(oldest, settings.maxPriceAgeH);
@@ -232,6 +261,11 @@ export function bestRoute(
   if (isThinHistory(out.item, chosen.loc)) {
     c = Math.min(c, 0.5);
     flags.push('thin-history');
+  }
+  if (stale) {
+    // Route qui n'existe que grâce à des prix plus vieux que l'âge maximal réglé.
+    c *= STALE_CONFIDENCE_FACTOR;
+    flags.push('stale');
   }
   const routeLocs = new Set<Location>(Object.values(buyFrom) as Location[]);
   routeLocs.add(craft.loc);
