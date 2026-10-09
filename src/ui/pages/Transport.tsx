@@ -28,8 +28,8 @@ const PAGE_SIZE = 200;
 const FLAG_TEXT: Record<TransportFlag, { short: string; long: string }> = {
   'red-zone': { short: 'Zone rouge', long: 'Caerleon ou le Black Market est impliqué : trajet en zone rouge, vous pouvez tout perdre.' },
   mists: { short: 'Brumes', long: 'Brecilien n’est accessible que par les Brumes.' },
-  suspect: { short: 'Suspect', long: 'Prix anormal par rapport à la moyenne sur 7 jours : ordre piège ou erreur de collecte possible.' },
-  stale: { short: 'Périmé', long: 'Au moins un des deux prix est plus vieux que l’âge maximal réglé.' },
+  suspect: { short: 'Suspect', long: 'Prix anormal par rapport à la moyenne sur 7 jours, ou marge invraisemblable (plus de 500 %) : ordre piège ou erreur de collecte possible.' },
+  stale: { short: 'Périmé', long: 'Au moins un des deux prix est plus vieux que l’âge maximal réglé (7 jours au plus).' },
 };
 
 function Loc({ loc }: { loc: Location }) {
@@ -297,7 +297,7 @@ export function TransportPage() {
           </label>
           <label className="f-check">
             <input type="checkbox" checked={includeStale} onChange={(e) => setIncludeStale(e.target.checked)} />
-            Inclure les prix plus vieux, marqués périmés
+            Inclure les prix plus vieux (jusqu’à 7 jours), marqués périmés
           </label>
           <label className="f-check">
             <input type="checkbox" checked={allPairs} onChange={(e) => setAllPairs(e.target.checked)} />

@@ -469,6 +469,9 @@ input[type='checkbox'] {
 
 /* ---------- Tableau des routes ---------- */
 .table-scroll {
+  /* Bloc conteneur des éléments .sr-only (position: absolute) des cellules : sans lui, ils
+     échappent au défilement et élargissent toute la page (débordement horizontal). */
+  position: relative;
   overflow-x: auto;
   border: 1px solid var(--line);
   border-radius: 8px;
@@ -594,7 +597,8 @@ th[aria-sort='descending'] .sort-ind {
 .age-t-fresh { color: var(--profit); }
 .age-t-ok { color: var(--text); }
 .age-t-stale { color: var(--warn); font-weight: 600; }
-.age-t-old { color: var(--faint); }
+/* --muted plutôt que --faint : --faint tombe à 4,1:1 sur --surface-2 (survol, thème sombre). */
+.age-t-old { color: var(--muted); }
 .age-tag {
   margin-left: 5px;
   padding: 0 5px;
@@ -735,6 +739,26 @@ th[aria-sort='descending'] .sort-ind {
   white-space: normal;
   background: var(--surface-2);
   padding: 10px 14px 12px 46px;
+}
+/* Le tableau peut être plus large que son conteneur : le texte du détail reste dans la zone
+   visible (collé au bord gauche du défilement) au lieu de partir hors écran. */
+.detail-row .route-detail {
+  position: sticky;
+  left: 14px;
+  max-width: min(78ch, calc(100vw - 96px));
+}
+/* Classements : en-têtes sur deux lignes et drapeaux sous le trajet, pour que les 11 colonnes
+   tiennent dans ~1 240 px sans défilement horizontal (le bouton « Détail » reste visible). */
+.routes thead th {
+  white-space: normal;
+  line-height: 1.2;
+}
+.routes thead th .sort-btn {
+  text-align: inherit;
+}
+.routes .c-route .route {
+  flex-wrap: wrap;
+  row-gap: 3px;
 }
 .route-detail {
   max-width: 78ch;
@@ -1318,6 +1342,10 @@ table.plain tbody th {
   .page-head--hero::before { animation: hero-in 280ms var(--ease-out) both; }
 }
 @keyframes hero-in { from { opacity: 0; transform: scale(1.02); } to { opacity: 1; transform: none; } }
+/* Bandeau pleine largeur : la marge négative suit la gouttière mobile (16 px, pas 20) — sinon 4 px de débordement. */
+@media (max-width: 640px) {
+  .page-head--hero { margin-left: -16px; margin-right: -16px; padding-left: 16px; padding-right: 16px; }
+}
 .page-head--art { display: grid; grid-template-columns: 1fr; gap: 4px; }
 .page-art {
   width: 100%;
@@ -1342,4 +1370,21 @@ table.plain tbody th {
   border: 1px solid var(--line);
   margin: 0 auto 18px;
   display: block;
+}
+
+/* Mobile : le tableau des classements défile horizontalement ; le bouton « Détail » reste
+   collé à droite pour rester atteignable sans défiler. */
+@media (max-width: 640px) {
+  .routes td.c-detail,
+  .routes th.c-detail {
+    position: sticky;
+    right: 0;
+    z-index: 1;
+    background: var(--surface);
+    box-shadow: -6px 0 6px -6px rgb(0 0 0 / 0.35);
+  }
+  .routes thead th.c-detail {
+    background: var(--surface-2);
+    z-index: 2;
+  }
 }

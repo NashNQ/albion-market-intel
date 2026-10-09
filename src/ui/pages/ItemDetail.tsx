@@ -79,7 +79,7 @@ export function ItemDetail({ id }: { id: string }) {
         </div>
       </header>
 
-      <ItemMarket id={id} item={item} />
+      <ItemMarket key={id} id={id} item={item} />
 
       {recipe && (
         <section aria-labelledby="h-recipe" className="block">

@@ -70,7 +70,7 @@ describe('page Transport', () => {
 
   it('prix périmés inclus sur demande, ville d’arrivée', () => {
     renderPage();
-    fireEvent.click(screen.getByLabelText('Inclure les prix plus vieux, marqués périmés'));
+    fireEvent.click(screen.getByLabelText('Inclure les prix plus vieux (jusqu’à 7 jours), marqués périmés'));
     const pl = bodyRows().find((r) => /Planches de pin/.test(r.textContent ?? ''))!;
     expect(txt(pl)).toContain('Périmé');
     expect(txt(pl)).toContain('Brumes');

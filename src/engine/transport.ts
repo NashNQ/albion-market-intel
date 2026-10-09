@@ -2,6 +2,7 @@
 import { LOCATIONS, PRODUCTION_LOCATIONS, type ItemMeta, type Location, type MarketSnapshot, type Settings } from '../types';
 import { ORDER_FEE, unitRevenue } from './cost';
 import { isSuspect, isSuspectLow, liquidity } from './filters';
+import { STALE_MAX_AGE_H, isImplausibleProfit } from './route';
 
 export type TransportFlag = 'red-zone' | 'mists' | 'suspect' | 'stale';
 
@@ -33,7 +34,7 @@ export interface TransportRow {
 }
 
 export interface TransportOptions {
-  /** Inclure les prix plus vieux que settings.maxPriceAgeH (marqués « stale »). */
+  /** Inclure les prix plus vieux que settings.maxPriceAgeH (marqués « stale »), jusqu'à 7 jours au plus. */
   includeStale?: boolean;
   /** Toutes les paires (A, B) rentables au lieu du meilleur couple par objet. */
   allPairs?: boolean;
@@ -86,7 +87,8 @@ export function computeTransport(
 ): TransportResult {
   const rows: TransportRow[] = [];
   if (!snapshot) return { rows, evaluated: 0 };
-  const maxAge = opts.includeStale ? Infinity : settings.maxPriceAgeH;
+  // Même au-delà de l'âge réglé, un prix de plus de 7 jours (ou daté 0001-01-01) n'est jamais utilisé.
+  const maxAge = opts.includeStale ? Math.max(STALE_MAX_AGE_H, settings.maxPriceAgeH) : settings.maxPriceAgeH;
   const staleAt = settings.maxPriceAgeH;
   const nBuy = TRANSPORT_BUY_LOCATIONS.length;
   const nSell = TRANSPORT_SELL_LOCATIONS.length;
@@ -162,7 +164,8 @@ export function computeTransport(
         const flags: TransportFlag[] = [];
         if (isRed(a) || isRed(b)) flags.push('red-zone');
         if (a === 'Brecilien' || b === 'Brecilien') flags.push('mists');
-        if (isSuspect(sPrice[j], item, b) || isSuspectLow(buyPrice, item, a)) flags.push('suspect');
+        if (isSuspect(sPrice[j], item, b) || isSuspectLow(buyPrice, item, a) || isImplausibleProfit(unitProfit, buyPrice))
+          flags.push('suspect');
         const oldestAgeH = Math.max(bAge[i], sAge[j]);
         if (!(oldestAgeH < staleAt)) flags.push('stale');
         const row: TransportRow = {

@@ -33,6 +33,14 @@ export const ESTIMATED_MAX_CONFIDENCE = 0.6;
 export const STALE_CONFIDENCE_FACTOR = 0.5;
 /** Âge au-delà duquel un prix est ignoré même avec showStale (7 jours). */
 export const STALE_MAX_AGE_H = 168;
+/** Garde-fous : au-delà, un profit est jugé invraisemblable (prix piège ou erreur de collecte). */
+export const IMPLAUSIBLE_PROFIT = 10_000_000;
+export const IMPLAUSIBLE_MARGIN = 5;
+
+/** Profit unitaire > 10 M ou marge > 500 % du coût : drapeau « suspect », jamais présenté comme sûr. */
+export function isImplausibleProfit(unitProfit: number, unitCost: number): boolean {
+  return unitProfit > IMPLAUSIBLE_PROFIT || (unitCost > 0 && unitProfit / unitCost > IMPLAUSIBLE_MARGIN);
+}
 
 /** Moyenne 7 jours utilisable comme prix estimé au lieu `loc`, ou null. */
 export function estimatedPrice(item: MarketItem, loc: Location): number | null {
@@ -266,6 +274,11 @@ export function bestRoute(
     // Route qui n'existe que grâce à des prix plus vieux que l'âge maximal réglé.
     c *= STALE_CONFIDENCE_FACTOR;
     flags.push('stale');
+  }
+  if (isImplausibleProfit(unitProfit, cost)) {
+    // Ex. artefact affiché 280 ag dans une ville sans moyenne 7 j, revendu 9 000 ag au Black Market.
+    c = Math.min(c, 0.5);
+    flags.push('suspect');
   }
   const routeLocs = new Set<Location>(Object.values(buyFrom) as Location[]);
   routeLocs.add(craft.loc);

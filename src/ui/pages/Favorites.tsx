@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import { LOCATIONS, PRODUCTION_LOCATIONS, type Location, type MarketItem, type RouteResult, type Settings } from '../../types';
 import { buyQuote, sellQuote } from '../../engine/cost';
 import { STALE_MAX_AGE_H } from '../../engine/route';
+import { isSuspect, isSuspectLow } from '../../engine/filters';
 import { useAppData } from '../context';
 import { useFavorites } from '../data/favorites';
 import { fmtSilver, itemHref, plural } from '../format';
@@ -29,6 +30,8 @@ export function bestQuote(item: MarketItem | undefined, side: 'sell' | 'buy', s:
     const p = item.prices?.[loc];
     const q = side === 'sell' ? sellQuote(p, s.mode, now, STALE_MAX_AGE_H, loc === 'Black Market') : buyQuote(p, s.mode, now, STALE_MAX_AGE_H);
     if (!q) continue;
+    // Ordre piège (> 3 × ou < 1/3 de la moyenne 7 j) : jamais présenté comme « meilleur prix ».
+    if (side === 'sell' ? isSuspect(q.price, item, loc) : isSuspectLow(q.price, item, loc)) continue;
     const cand = { loc, price: q.price, ageH: q.ageH };
     const better = (cur: FavQuote | null) => !cur || (side === 'sell' ? cand.price > cur.price : cand.price < cur.price);
     if (q.ageH < s.maxPriceAgeH) {

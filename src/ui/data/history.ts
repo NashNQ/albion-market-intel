@@ -94,6 +94,20 @@ export function parseHistory(raw: unknown): HistoryByLoc {
   return out;
 }
 
+const isDailyPoint = (d: unknown): boolean => {
+  const p = d as DailyPoint | null;
+  return !!p && typeof p === 'object' && Number.isFinite(p.day) && Number.isFinite(p.price) && Number.isFinite(p.volume);
+};
+
+/** Entrée de cache bien formée (une valeur corrompue ou d'un ancien format ferait planter la fiche). */
+export function isHistoryByLoc(v: unknown): v is HistoryByLoc {
+  if (!v || typeof v !== 'object' || Array.isArray(v)) return false;
+  for (const [k, days] of Object.entries(v)) {
+    if (!isLocation(k) || !Array.isArray(days) || !days.every(isDailyPoint)) return false;
+  }
+  return true;
+}
+
 interface CacheEntry {
   at: number;
   data: HistoryByLoc;
@@ -105,7 +119,7 @@ function readCache(id: string, nowMs: number): HistoryByLoc | null {
     if (!txt) return null;
     const e = JSON.parse(txt) as CacheEntry;
     if (!e || typeof e.at !== 'number' || nowMs - e.at > HISTORY_TTL_MS || nowMs < e.at) return null;
-    return e.data && typeof e.data === 'object' ? e.data : null;
+    return isHistoryByLoc(e.data) ? e.data : null;
   } catch {
     return null;
   }
@@ -197,32 +211,34 @@ const isAbort = (e: unknown) => (e as { name?: string })?.name === 'AbortError';
 
 /** Historique de l'objet : requête à l'ouverture de la fiche, annulée au démontage. */
 export function useItemHistory(id: string, fetchImpl?: FetchLike): [Loadable<HistoryByLoc>, () => void] {
-  const [st, setSt] = useState<Loadable<HistoryByLoc>>({ state: 'loading' });
+  // L'état mémorise l'objet auquel il se rapporte : en changeant de fiche, l'historique de l'objet
+  // précédent n'est jamais rendu, même le temps d'un affichage (l'effet ne s'exécute qu'après).
+  const [st, setSt] = useState<{ id: string; v: Loadable<HistoryByLoc> }>({ id, v: { state: 'loading' } });
   const [nonce, setNonce] = useState(0);
   useEffect(() => {
     const ac = new AbortController();
-    setSt({ state: 'loading' });
+    setSt({ id, v: { state: 'loading' } });
     fetchHistory(id, { fetchImpl, signal: ac.signal }).then(
       (data) => {
-        if (!ac.signal.aborted) setSt({ state: 'ok', data, at: Date.now() });
+        if (!ac.signal.aborted) setSt({ id, v: { state: 'ok', data, at: Date.now() } });
       },
       (e) => {
-        if (!ac.signal.aborted && !isAbort(e)) setSt(toError(e));
+        if (!ac.signal.aborted && !isAbort(e)) setSt({ id, v: toError(e) });
       },
     );
     return () => ac.abort();
   }, [id, fetchImpl, nonce]);
-  return [st, useCallback(() => setNonce((n) => n + 1), [])];
+  return [st.id === id ? st.v : { state: 'loading' }, useCallback(() => setNonce((n) => n + 1), [])];
 }
 
 /** Prix en direct : rien tant que le joueur n'a pas cliqué sur « Actualiser les prix ». */
 export function useLivePrices(id: string, fetchImpl?: FetchLike): [Loadable<LivePrices>, () => void] {
-  const [st, setSt] = useState<Loadable<LivePrices>>({ state: 'idle' });
+  const [st, setSt] = useState<{ id: string; v: Loadable<LivePrices> }>({ id, v: { state: 'idle' } });
   const acRef = useRef<AbortController | null>(null);
   const lastRef = useRef<LivePrices | undefined>(undefined);
 
   useEffect(() => {
-    setSt({ state: 'idle' });
+    setSt({ id, v: { state: 'idle' } });
     lastRef.current = undefined;
     return () => acRef.current?.abort();
   }, [id]);
@@ -231,18 +247,19 @@ export function useLivePrices(id: string, fetchImpl?: FetchLike): [Loadable<Live
     acRef.current?.abort();
     const ac = new AbortController();
     acRef.current = ac;
-    setSt({ state: 'loading', prev: lastRef.current });
+    setSt({ id, v: { state: 'loading', prev: lastRef.current } });
     fetchLivePrices(id, { fetchImpl, signal: ac.signal }).then(
       (data) => {
         if (ac.signal.aborted) return;
         lastRef.current = data;
-        setSt({ state: 'ok', data, at: Date.now() });
+        setSt({ id, v: { state: 'ok', data, at: Date.now() } });
       },
       (e) => {
-        if (!ac.signal.aborted && !isAbort(e)) setSt(toError(e, lastRef.current));
+        if (!ac.signal.aborted && !isAbort(e)) setSt({ id, v: toError(e, lastRef.current) });
       },
     );
   }, [id, fetchImpl]);
 
-  return [st, refresh];
+  // Prix en direct d'un autre objet (fiche précédente) : jamais affichés.
+  return [st.id === id ? st.v : { state: 'idle' }, refresh];
 }

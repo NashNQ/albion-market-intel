@@ -50,7 +50,7 @@ export function confidenceReasons(r: RouteResult, s: Settings): string[] {
   else out.push(`le prix le plus vieux utilisé a ${fmtAgeH(age)}`);
   if (r.flags.includes('estimated')) out.push('au moins un prix est estimé à partir de la moyenne sur 7 jours');
   if (r.flags.includes('thin-history')) out.push(`l’historique de ventes à ${r.sellAt} est mince (moins de 5 jours sur 7)`);
-  if (r.flags.includes('suspect')) out.push('le prix de vente semble anormal par rapport à la moyenne sur 7 jours');
+  if (r.flags.includes('suspect')) out.push('le profit est invraisemblable (plus de 500 % du coût) : un prix est probablement un piège ou une erreur de collecte');
   return out;
 }
 

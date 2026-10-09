@@ -47,11 +47,16 @@ function signedPct(p: number): string {
   return p > 0 ? `+${s}` : p < 0 ? `−${s}` : s;
 }
 
-/** Ville par défaut : la plus active (ventes/jour), hors Black Market s'il y a mieux. */
-function pickDefaultCity(sales: Partial<Record<Location, number | null>>): Location {
+/**
+ * Ville par défaut : la plus active (ventes/jour), hors Black Market s'il y a mieux. Une fois
+ * l'historique chargé, seules les villes qui en ont un sont candidates : sinon la fiche choisissait
+ * une ville d'après le volume de la collecte et affichait « aucune vente » juste en dessous.
+ */
+export function pickDefaultCity(sales: Partial<Record<Location, number | null>>, withHistory?: ReadonlySet<Location>): Location {
   let best: Location = 'Martlock';
   let bestV = -1;
-  for (const loc of LOCATIONS) {
+  const pool = withHistory && withHistory.size > 0 ? LOCATIONS.filter((l) => withHistory.has(l)) : LOCATIONS;
+  for (const loc of pool) {
     const v = sales[loc] ?? -1;
     const score = loc === 'Black Market' ? v * 0.5 : v;
     if (score > bestV) {
@@ -80,16 +85,19 @@ export function ItemMarket({ id, item, fetchImpl }: { id: string; item: MarketIt
   // Âges calculés à l'instant le plus récent connu (horloge de l'app ou heure de la requête en direct).
   const refNow = Math.max(nowMs, liveAt ?? 0);
 
-  const salesByLoc = useMemo(() => {
+  const { salesByLoc, withHistory } = useMemo(() => {
     const out: Partial<Record<Location, number | null>> = {};
+    const withHistory = new Set<Location>();
     for (const loc of LOCATIONS) {
       const d = histData?.[loc];
-      out[loc] = d ? medianDailySales(d, nowMs) : item?.volume7d[loc] ?? null;
+      if (d?.length) withHistory.add(loc);
+      out[loc] = d?.length ? medianDailySales(d, nowMs) : item?.volume7d[loc] ?? null;
     }
-    return out;
+    return { salesByLoc: out, withHistory };
   }, [histData, item, nowMs]);
 
-  const city = chosen ?? pickDefaultCity(salesByLoc);
+  const city = chosen ?? pickDefaultCity(salesByLoc, withHistory);
+  const salesFromSnapshot = !withHistory.has(city);
   const daily: DailyPoint[] = histData?.[city] ?? [];
   const avg30 = useMemo(() => average30d(daily, nowMs), [daily, nowMs]);
   const trend = useMemo(() => trend7d(daily, nowMs), [daily, nowMs]);
@@ -184,7 +192,7 @@ export function ItemMarket({ id, item, fetchImpl }: { id: string; item: MarketIt
                 <p className="im-big">≈ {plural(Math.round(sales), 'vente')}/jour</p>
                 <p className="im-line">
                   à <LocChip loc={city} /> {city}, médiane des 7 derniers jours complets
-                  {histData ? '' : ' (données de la dernière collecte)'}.
+                  {salesFromSnapshot ? ' (volume de la dernière collecte du site : pas d’historique en direct pour cette ville)' : ''}.
                 </p>
               </>
             ) : (
@@ -329,7 +337,7 @@ function DataTable({ city, daily, others }: { city: Location; daily: DailyPoint[
 function AgeCell({ ageH }: { ageH: number | null }) {
   const c = ageClass(ageH);
   return (
-    <td className={`num age age-${c}`} title={`Âge du prix : ${AGE_LABEL[c]}`}>
+    <td className={`num secondary age age-${c}`} title={`Âge du prix : ${AGE_LABEL[c]}`}>
       {c === 'none' ? '—' : fmtAgeH(ageH)}
       {c === 'stale' && <span className="age-tag">périmé</span>}
     </td>

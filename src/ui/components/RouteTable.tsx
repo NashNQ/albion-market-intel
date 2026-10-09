@@ -201,6 +201,8 @@ export function RouteTable({ rows, metaById, variant, caption, settings = DEFAUL
     count: virtual ? tableRows.length : 0,
     getScrollElement: () => scrollRef.current,
     estimateSize: () => ROW_H,
+    // Hauteur mesurée (panneau ouvert) attachée à la ligne, pas à sa position : un tri ne la décale plus.
+    getItemKey: (i) => tableRows[i]?.id ?? i,
     overscan: 12,
   });
   const vItems = virtual ? virtualizer.getVirtualItems() : [];

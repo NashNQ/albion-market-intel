@@ -70,7 +70,7 @@ export const FLAG_LABEL: Record<RouteResult['flags'][number], { short: string; l
   'red-zone': { short: 'Zone rouge', long: 'La route passe par Caerleon ou le Black Market : trajet en zone rouge (risque de perte totale).' },
   mists: { short: 'Brumes', long: 'La route passe par Brecilien, accessible uniquement par les Brumes.' },
   'thin-history': { short: 'Historique mince', long: 'Moins de 5 jours de ventes sur 7 au lieu de vente : volume peu fiable.' },
-  suspect: { short: 'Suspect', long: 'Prix de vente anormalement élevé par rapport à la moyenne sur 7 jours.' },
+  suspect: { short: 'Suspect', long: 'Profit invraisemblable (plus de 500 % du coût ou plus de 10 M par unité) : prix piège ou erreur de collecte probable. Vérifiez les prix en jeu. Confiance plafonnée à 0,50.' },
   estimated: {
     short: 'Estimé',
     long: 'Au moins un prix récent manquait : la moyenne sur 7 jours du même lieu a été utilisée (prix estimé). Confiance plafonnée à 0,60.',
