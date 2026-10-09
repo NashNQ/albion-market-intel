@@ -218,8 +218,9 @@ describe('interface', () => {
     expectFrench(container);
   });
 
-  it('Fiche objet : prix par lieu, recette et calcul pas à pas', () => {
+  it('Fiche objet : prix par lieu, recette et calcul pas à pas', async () => {
     const { container } = go('#/item/T5_PLANKS_LEVEL1%401');
+    await screen.findByRole('heading', { level: 1 });
     expect(screen.getByRole('heading', { level: 1, name: 'Planches de cèdre peu communes' })).toBeTruthy();
     expect(screen.getByRole('heading', { name: 'Prix par lieu' })).toBeTruthy();
     expect(screen.getByRole('heading', { name: 'Recette' })).toBeTruthy();
@@ -232,8 +233,9 @@ describe('interface', () => {
     expectFrench(container);
   });
 
-  it('Fiche objet sans recette : uniquement les prix', () => {
+  it('Fiche objet sans recette : uniquement les prix', async () => {
     go('#/item/T5_WOOD_LEVEL1%401');
+    await screen.findByRole('heading', { level: 1 });
     expect(screen.getByRole('heading', { level: 1, name: 'Bûches de cèdre peu communes' })).toBeTruthy();
     expect(screen.getByRole('heading', { name: 'Prix par lieu' })).toBeTruthy();
     expect(screen.queryByRole('heading', { name: 'Recette' })).toBeNull();

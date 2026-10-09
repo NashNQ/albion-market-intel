@@ -40,8 +40,9 @@ afterEach(() => {
 });
 
 describe('page Mes routes', () => {
-  it('onglet, préréglage T2→T4 bois, profit total et sauvegarde dans la liste', () => {
+  it('onglet, préréglage T2→T4 bois, profit total et sauvegarde dans la liste', async () => {
     const { container } = go('#/routes');
+    await screen.findByRole('heading', { level: 1 });
     expect(screen.getByRole('heading', { level: 1, name: 'Mes routes' })).toBeTruthy();
     const tab = screen.getByRole('link', { name: 'Mes routes' });
     expect(tab.getAttribute('aria-current')).toBe('page');
@@ -78,8 +79,9 @@ describe('page Mes routes', () => {
     expect(container.textContent).not.toMatch(/\b(Save|Share|Export|Loading)\b/);
   });
 
-  it('remplacer un intermédiaire par un achat avec confirmation inline', () => {
+  it('remplacer un intermédiaire par un achat avec confirmation inline', async () => {
     go('#/routes');
+    await screen.findByRole('heading', { level: 1 });
     fireEvent.click(screen.getByRole('button', { name: 'Générer la chaîne' }));
     const last = screen.getByRole('article', { name: /Étape 3/ });
     fireEvent.click(within(last).getByRole('button', { name: 'Remplacer par un achat' }));
@@ -90,13 +92,14 @@ describe('page Mes routes', () => {
     expect(screen.getByTestId('rb-profit-total').textContent?.replace(/\s/gu, ' ')).toBe('8 080 ag');
   });
 
-  it('route partagée par URL : proposition d’enregistrement', () => {
+  it('route partagée par URL : proposition d’enregistrement', async () => {
     const code = encodeShare({
       name: 'Partagée',
       steps: [{ outputId: 'T2_PLANKS', craftAt: 'auto', inputs: [{ id: 'T2_WOOD', source: { type: 'buy', at: 'auto' } }] }],
       final: { sellAt: 'auto', qty: 10, qtyMode: 'final' },
     });
     go(`#/routes?r=${code}`);
+    await screen.findByRole('heading', { level: 1 });
     expect(screen.getByText('Partagée', { selector: 'strong' })).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Enregistrer cette route partagée' }));
     const list = screen.getByRole('list', { name: 'Routes enregistrées' });
