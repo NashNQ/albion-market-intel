@@ -74,7 +74,10 @@ function MetricsHelp({ variant }: { variant: 'ranked' | 'black-market' }) {
 }
 
 export function RankingView({ title, intro, rows, variant, notice }: Props) {
-  const { metaById, settings, updateSettings, resetSettings } = useAppData();
+  const { metaById, settings, updateSettings, resetSettings, rankings } = useAppData();
+  const stats = variant === 'black-market' ? rankings?.bmStats ?? rankings?.stats : rankings?.stats;
+  // Données participatives : la nuit, peu de joueurs scannent le marché et la plupart des prix vieillissent.
+  const mostlyStale = !!stats && stats.evaluated > 0 && stats.stale / stats.evaluated > 0.5;
   const [filters, setFilters] = useState<FilterState>(EMPTY_FILTERS);
   const filtered = useMemo(() => applyFilters(rows, filters, metaById), [rows, filters, metaById]);
 
@@ -86,6 +89,18 @@ export function RankingView({ title, intro, rows, variant, notice }: Props) {
         <StatsLine scope={variant === 'black-market' ? 'black-market' : 'global'} />
       </header>
       {notice}
+      {mostlyStale && !settings.showStale && (
+        <div className="stale-notice" role="status">
+          <p>
+            <strong>{fmtInt(stats!.stale)} recettes sur {fmtInt(stats!.evaluated)}</strong> n’ont que des prix de plus de{' '}
+            {settings.maxPriceAgeH} h. Les prix viennent des joueurs qui utilisent le client de l’Albion Online Data Project : aux
+            heures creuses, peu de marchés sont relevés.
+          </p>
+          <button type="button" className="btn-ghost" onClick={() => updateSettings({ showStale: true })}>
+            Afficher aussi ces opportunités (marquées périmées)
+          </button>
+        </div>
+      )}
       <details className="quick-settings">
         <summary>
           Réglages rapides
@@ -110,7 +125,14 @@ export function RankingView({ title, intro, rows, variant, notice }: Props) {
           : `${plural(filtered.length, 'route affichée')} sur ${fmtInt(rows.length)}`}
       </p>
       <MetricsHelp variant={variant} />
-      <RouteTable rows={filtered} metaById={metaById} variant={variant} caption={title} settings={settings} />
+      <RouteTable
+        rows={filtered}
+        metaById={metaById}
+        variant={variant}
+        caption={title}
+        settings={settings}
+        onShowStale={() => updateSettings({ showStale: true })}
+      />
     </section>
   );
 }

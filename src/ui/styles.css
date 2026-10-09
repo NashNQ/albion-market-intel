@@ -1388,3 +1388,26 @@ table.plain tbody th {
     z-index: 2;
   }
 }
+
+/* Itération 4 : prix majoritairement périmés (heures creuses des données participatives). */
+.stale-notice {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 16px;
+  border-left: 4px solid var(--warn);
+  background: color-mix(in srgb, var(--warn) 9%, var(--surface));
+  padding: 10px 14px;
+  margin: 0 0 14px;
+  border-radius: 0 6px 6px 0;
+}
+.stale-notice p {
+  margin: 0;
+  flex: 1 1 320px;
+}
+.empty-table p {
+  margin: 0;
+}
+.empty-table .stale-cta {
+  margin-top: 12px;
+}

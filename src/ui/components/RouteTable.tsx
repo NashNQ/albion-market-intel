@@ -25,6 +25,8 @@ interface Props {
   caption: string;
   /** Réglages courants (détail des calculs, seuils d'âge). Défaut : DEFAULT_SETTINGS. */
   settings?: Settings;
+  /** Bascule « afficher les prix périmés » proposée dans l'état vide. */
+  onShowStale?: () => void;
 }
 
 /** Aide des en-têtes (infobulles + légende « Comment lire ce classement ? »). */
@@ -43,7 +45,7 @@ const detailId = (rowId: string) => `rd-${rowId.replace(/[^A-Za-z0-9_-]/g, '_')}
 
 const nameOf = (r: RouteResult, meta: Map<string, ItemMeta>) => meta.get(r.recipe.outputId)?.nameFr ?? r.recipe.outputId;
 
-export function RouteTable({ rows, metaById, variant, caption, settings = DEFAULT_SETTINGS }: Props) {
+export function RouteTable({ rows, metaById, variant, caption, settings = DEFAULT_SETTINGS, onShowStale }: Props) {
   const [sorting, setSorting] = useState<SortingState>(
     variant === 'ranked' ? [{ id: 'score', desc: true }] : [{ id: 'profit', desc: true }],
   );
@@ -213,11 +215,17 @@ export function RouteTable({ rows, metaById, variant, caption, settings = DEFAUL
 
   if (rows.length === 0) {
     return (
-      <p className="empty-table">
-        Aucune route rentable ne passe les filtres. Élargissez l’âge maximal des prix, baissez le volume minimum ou
-        retirez un filtre.
-        {!settings.showStale && ' Vous pouvez aussi afficher les opportunités aux prix périmés.'}
-      </p>
+      <div className="empty-table">
+        <p>
+          Aucune route rentable ne passe les filtres. Élargissez l’âge maximal des prix, baissez le volume minimum ou
+          retirez un filtre.
+        </p>
+        {!settings.showStale && onShowStale && (
+          <button type="button" className="btn-ghost stale-cta" onClick={onShowStale}>
+            Afficher les opportunités aux prix périmés
+          </button>
+        )}
+      </div>
     );
   }
 
