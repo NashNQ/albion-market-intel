@@ -106,7 +106,7 @@ const STACK: { name: string; role: string }[] = [
   { name: 'TanStack Table', role: 'tableaux triables et virtualisés, des milliers de lignes sans ralentir' },
   { name: 'GitHub Actions', role: 'collecte planifiée des prix, des volumes et des recettes' },
   { name: 'Netlify', role: 'hébergement statique et relais des fichiers de données' },
-  { name: 'Vitest', role: 'plus de 200 tests : moteur, collecte, fermes, interface' },
+  { name: 'Vitest', role: 'près de 350 tests : moteur, collecte, fermes, investissements, interface' },
   { name: 'CSS maison', role: 'variables pour les thèmes clair et sombre, aucune bibliothèque de composants' },
 ];
 
@@ -126,9 +126,23 @@ const TIMELINE: { when: string; title: string; text: string }[] = [
     title: 'Fermes et refonte',
     text: 'Le domaine agriculture et élevage des îles, avec l’allocation du focus d’arrosage, puis une refonte de la vitrine et des micro-interactions.',
   },
+  {
+    when: 'Itération 4',
+    title: 'Les questions du joueur',
+    text: '18 questions de joueur posées, 14 traitées : historique prix et volume sur 30 jours, âge des prix visible plutôt que masqué, transport ville à ville, favoris, détail des calculs en phrases, cuisine et alchimie.',
+  },
+  {
+    when: 'Itération 5',
+    title: 'Investir : un besoin de guilde',
+    text: 'Une guilde finance ses membres pour qu’ils produisent. La page « Investir » calcule quand le capital revient (3 scénarios), le coût de montée en raffinage ou en craft jusqu’à un tier, d’après les tables de renommée du jeu, et suit un portefeuille d’investissements avec un résumé à coller sur Discord.',
+  },
 ];
 
 const FINDINGS: { title: string; text: string }[] = [
+  {
+    title: 'Un « @everyone » caché dans un lien partagé',
+    text: 'Sur la page Investir, un nom de membre venu d’un lien partagé passait tel quel dans le résumé copié pour Discord : il aurait notifié tout le serveur de la guilde. Mentions et mise en forme sont désormais neutralisées.',
+  },
   {
     title: 'Un profit de −25 M quand un prix manque',
     text: 'Trouvée en test réel, sur le site en ligne : quand un prix manquait, une ligne affichait une perte absurde au lieu d’être écartée. Corrigée, puis verrouillée par un test.',
@@ -226,6 +240,8 @@ export function AboutPage() {
               <li>une fiche par objet qui déroule le calcul pas à pas ;</li>
               <li>« Mes routes », pour monter une chaîne complète en choisissant d’acheter ou de fabriquer chaque étape ;</li>
               <li>« Fermes », pour l’agriculture et l’élevage des îles et l’allocation du focus d’arrosage ;</li>
+              <li>« Transport », pour acheter dans une ville et revendre dans une autre sans rien fabriquer ;</li>
+              <li>« Investir », pour qu’une guilde sache en combien de jours l’argent prêté à un membre lui revient ;</li>
               <li>des réglages qui collent à la situation de chaque joueur.</li>
             </ul>
             <dl className="mk-facts">

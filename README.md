@@ -30,6 +30,8 @@ GitHub Actions (gratuit)                    Netlify (plan Free)            Navig
 
 Périmètre (générateur v4) : raffinage, équipement @0–@4, consommables de **cuisine** et d'**alchimie** @0–@3 (bonus Caerleon / Brecilien, quantités produites 5–10 par craft), poids des objets dans `meta`.
 
+Page **Investir** (`#/investir`) : simulateur de retour sur investissement d'un membre financé par la guilde (point mort, ROI 30/90 j, 3 scénarios), coût de montée en compétence estimé depuis les données du jeu (`src/engine/leveling.ts`) et portefeuille local (`ami.invest.v1`) avec lien de partage et résumé Discord.
+
 Règles de données : prix à 0 ou daté `0001-01-01` = absent ; prix plus vieux que 6 h exclus (réglable) ; prix > 3× la moyenne 7 j (vente) ou < 1/3 (achat) = suspect, exclu.
 
 ## Développement

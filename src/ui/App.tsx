@@ -16,6 +16,7 @@ const RouteBuilder = lazy(() => import('./pages/RouteBuilder').then((m) => ({ de
 const AboutPage = lazy(() => import('./pages/About').then((m) => ({ default: m.AboutPage })));
 const FarmsPage = lazy(() => import('./pages/Farms').then((m) => ({ default: m.FarmsPage })));
 const TransportPage = lazy(() => import('./pages/Transport').then((m) => ({ default: m.TransportPage })));
+const InvestPage = lazy(() => import('./pages/Invest').then((m) => ({ default: m.InvestPage })));
 const FavoritesPage = lazy(() => import('./pages/Favorites').then((m) => ({ default: m.FavoritesPage })));
 const ItemDetail = lazy(() => import('./pages/ItemDetail').then((m) => ({ default: m.ItemDetail })));
 
@@ -32,6 +33,7 @@ export function parseHash(hash: string): ParsedRoute {
     const share = shareCodeFromHash('#/' + h);
     return share ? { name: 'routes', share } : { name: 'routes' };
   }
+  if (h === 'investir' || h.startsWith('investir?')) return { name: 'investir' };
   const [head, ...rest] = h.split('/');
   switch (head) {
     case '':
@@ -144,6 +146,7 @@ export function App() {
   else if (route.name === 'fermes') body = <FarmsPage />;
   else if (route.name === 'transport') body = <TransportPage />;
   else if (route.name === 'favoris') body = <FavoritesPage />;
+  else if (route.name === 'investir') body = <InvestPage />;
   else if (route.name === 'craft') body = <TopCrafting />;
   else if (route.name === 'black-market') body = <BlackMarket />;
   else if (route.name === 'reglages') body = <SettingsPage />;

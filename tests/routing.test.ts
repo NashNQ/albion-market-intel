@@ -15,5 +15,7 @@ describe('parseHash (itération 3)', () => {
     expect(parseHash('#/routes')).toEqual({ name: 'routes' });
     expect(parseHash('#/transport')).toEqual({ name: 'transport' });
     expect(parseHash('#/favoris')).toEqual({ name: 'favoris' });
+    expect(parseHash('#/investir')).toEqual({ name: 'investir' });
+    expect(parseHash('#/investir?i=abc')).toEqual({ name: 'investir' });
   });
 });

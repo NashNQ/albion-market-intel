@@ -1,7 +1,7 @@
 import { useEffect, useRef, type ReactNode } from 'react';
 import { fmtClock, fmtInt } from '../format';
 
-export type RouteName = 'accueil' | 'raffinage' | 'craft' | 'transport' | 'fermes' | 'favoris' | 'black-market' | 'routes' | 'item' | 'reglages' | 'a-propos';
+export type RouteName = 'accueil' | 'raffinage' | 'craft' | 'transport' | 'fermes' | 'investir' | 'favoris' | 'black-market' | 'routes' | 'item' | 'reglages' | 'a-propos';
 
 const TABS: { route: RouteName; href: string; label: string }[] = [
   { route: 'accueil', href: '#/', label: 'Accueil' },
@@ -9,6 +9,7 @@ const TABS: { route: RouteName; href: string; label: string }[] = [
   { route: 'craft', href: '#/craft', label: 'Craft' },
   { route: 'transport', href: '#/transport', label: 'Transport' },
   { route: 'fermes', href: '#/fermes', label: 'Fermes' },
+  { route: 'investir', href: '#/investir', label: 'Investir' },
   { route: 'routes', href: '#/routes', label: 'Mes routes' },
   { route: 'favoris', href: '#/favoris', label: 'Favoris' },
   { route: 'black-market', href: '#/black-market', label: 'Black Market' },
