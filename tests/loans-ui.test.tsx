@@ -100,6 +100,17 @@ describe('page Prêts sur gage — évaluation', () => {
     expect(screen.getByRole('alert').textContent).toMatch(/dépasse le prêt max conseillé/);
   });
 
+  it('gage énorme : la revente rapide ne compte que 3 jours de ventes de la ville, avec un avertissement', async () => {
+    renderPage(async () => res(null, 429));
+    fireEvent.change(input('Quantité'), { target: { value: '5000' } });
+    pickPlanks();
+    await flush();
+    const card = screen.getByRole('article');
+    // Volume 1 000/jour à Martlock → 3 000 unités comptées : 3 000 × 672 = 2 016 000 ag (et non 3 360 000).
+    expect(txt(card)).toContain('2 016 000 ag');
+    expect(txt(screen.getByTestId('gl-liquidity'))).toMatch(/Seules 3 000 unités sur 5 000/);
+  });
+
   it('API saturée (429) : estimation sans historique, signalée', async () => {
     renderPage(async () => res(null, 429));
     fireEvent.change(input('Quantité'), { target: { value: '1000' } });

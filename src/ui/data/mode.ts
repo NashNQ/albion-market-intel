@@ -11,9 +11,12 @@ export function isGuildRoute(name: RouteName): boolean {
   return (GUILD_ROUTES as readonly string[]).includes(name) || name === 'investir';
 }
 
-/** Routes qui n'imposent aucun mode (fiche objet ouverte depuis l'un ou l'autre). */
+/**
+ * Routes qui n'imposent aucun mode : la fiche objet (ouverte depuis l'un ou l'autre) et les réglages du site
+ * (taxe premium, âge des prix) — la page des prêts y renvoie : un officier ne doit pas être éjecté du mode Guilde.
+ */
 export function isNeutralRoute(name: RouteName): boolean {
-  return name === 'item';
+  return name === 'item' || name === 'reglages';
 }
 
 /** Mode imposé par une route (null = garder le mode courant). */

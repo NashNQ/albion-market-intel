@@ -4,7 +4,7 @@ import { useMemo } from 'react';
 import type { Recipe, RouteResult } from '../../../types';
 import { buildPriceIndex, compareRanked } from '../../../engine';
 import { activityFor, simulateInvestment } from '../../../engine/invest';
-import { WATCH_DAYS, daysBetween, isoDay, summarizeLoans, valueCollateral } from '../../../engine/pawn';
+import { WATCH_DAYS, daysBetween, localDay, summarizeLoans, valueCollateral } from '../../../engine/pawn';
 import { useAppData } from '../../context';
 import { useInvestments, encodeInvestment, todayIso } from '../../data/investStore';
 import { useLoans } from '../../data/loansStore';
@@ -93,25 +93,27 @@ export function GuildDashboard() {
     return { capital, perDay, priced, negative };
   }, [investments, recipesByOutput, index, bonuses, settings, metaById]);
 
-  // Valeur nette unitaire de revente rapide (meilleur ordre d'achat, taxe déduite) d'après le snapshot.
-  const valueOf = useMemo(() => {
+  // Valeur nette de revente rapide d'un gage (taxe déduite, quantité bornée par la liquidité) d'après le snapshot.
+  const totalOf = useMemo(() => {
     const cache = new Map<string, number | null>();
-    return (id: string): number | null => {
-      if (!cache.has(id)) {
-        const v = valueCollateral(itemById.get(id), 1, { premium: settings.premium, maxPriceAgeH: settings.maxPriceAgeH, now });
-        cache.set(id, v.quick?.unitNet ?? null);
+    return (id: string, qty: number): number | null => {
+      const k = id + '|' + qty;
+      if (!cache.has(k)) {
+        const v = valueCollateral(itemById.get(id), qty, { premium: settings.premium, maxPriceAgeH: settings.maxPriceAgeH, now });
+        cache.set(k, v.quick?.total ?? null);
       }
-      return cache.get(id) ?? null;
+      return cache.get(k) ?? null;
     };
   }, [itemById, settings.premium, settings.maxPriceAgeH, now]);
+  const valueOf = useMemo(() => (id: string) => totalOf(id, 1), [totalOf]);
 
   const sum = useMemo(
-    () => summarizeLoans(loans, valueOf, now, { safetyMargin: guild.safetyMargin }),
-    [loans, valueOf, now, guild.safetyMargin],
+    () => summarizeLoans(loans, valueOf, now, { safetyMargin: guild.safetyMargin, totalOf }),
+    [loans, valueOf, totalOf, now, guild.safetyMargin],
   );
 
   const todos = useMemo<Todo[]>(() => {
-    const t0 = isoDay(now);
+    const t0 = localDay(now);
     const out: Todo[] = [];
     const open = loans.filter((l) => l.status === 'open').sort((a, b) => (a.dueDate < b.dueDate ? -1 : a.dueDate > b.dueDate ? 1 : 0));
     for (const l of open) {
@@ -128,8 +130,8 @@ export function GuildDashboard() {
         });
         continue;
       }
-      const unit = valueOf(l.itemId);
-      const atRisk = unit != null && unit * l.qty * (1 - guild.safetyMargin) < l.amount * (1 + l.rate);
+      const value = totalOf(l.itemId, l.qty);
+      const atRisk = value != null && value * (1 - guild.safetyMargin) < l.amount * (1 + l.rate);
       if (atRisk)
         out.push({
           key: 'r' + l.id,
@@ -159,7 +161,7 @@ export function GuildDashboard() {
         action: 'Voir le portefeuille',
       });
     return out;
-  }, [loans, now, valueOf, guild.safetyMargin, inv.negative]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [loans, now, totalOf, guild.safetyMargin, inv.negative]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const opportunities = useMemo<RouteResult[]>(() => {
     if (!rankings) return [];

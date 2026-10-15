@@ -47,6 +47,15 @@ export function itemLabel(id: string, metaById: Map<string, ItemMeta>): string {
 
 export const HEALTH_TEXT = HEALTH_LABEL;
 
+/** Valeur nette de revente rapide d'un gage (quantité comprise, bornée par la liquidité de la ville). */
+export function loanTotalOf(
+  itemById: Map<string, MarketItem>,
+  settings: Pick<Settings, 'premium' | 'maxPriceAgeH'>,
+  now: Date,
+): (itemId: string, qty: number) => number | null {
+  return (id, qty) => valueCollateral(itemById.get(id), qty, { premium: settings.premium, maxPriceAgeH: settings.maxPriceAgeH, now }).quick?.total ?? null;
+}
+
 /** Valeur nette unitaire de revente rapide (pour summarizeLoans du tableau de bord). */
 export function loanValueOf(
   itemById: Map<string, MarketItem>,

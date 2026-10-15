@@ -184,7 +184,7 @@ describe('dynamique du prix (historique 30 j)', () => {
     expect(d.sigma).toBeCloseTo(0.05, 10);
   });
 
-  it('hausse forte plafonnée à +1 %/jour ; moins de 5 jours → repli', () => {
+  it('hausse jamais comptée (tendance retenue 0) ; moins de 5 jours → repli', () => {
     const d = priceDynamics(series(Array.from({ length: 10 }, (_, i) => 1000 * 1.05 ** i)), NOW.getTime());
     expect(d.rawTrend).toBeCloseTo(Math.log(1.05), 10);
     expect(d.trend).toBe(TREND_MAX);

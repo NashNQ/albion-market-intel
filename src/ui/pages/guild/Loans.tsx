@@ -5,12 +5,15 @@ import type { MarketItem } from '../../../types';
 import {
   FALLBACK_DYNAMICS,
   HEALTH_LABEL,
+  QUICK_SALE_DAYS,
   Z_PRUDENT,
   addDays,
+  capQuickToAverage,
+  recentAveragePrice,
   compareUrgency,
   daysBetween,
   evaluateLoan,
-  isoDay,
+  localDay,
   loanHealth,
   priceDynamics,
   seizedResult,
@@ -80,6 +83,8 @@ export function parseAmount(s: string): number {
 
 interface Assessed {
   valuation: CollateralValuation;
+  /** Revente rapide ramenée au prix moyen payé sur 30 jours (ordre d'achat au-dessus de la moyenne). */
+  cappedToAverage: boolean;
   dynamics: PriceDynamics;
   /** 'history' : historique utilisé ; 'loading' : en attente (estimation provisoire) ; 'fallback' : sans historique. */
   source: 'history' | 'loading' | 'fallback';
@@ -97,7 +102,8 @@ function assess(
   settings: { premium: boolean; maxPriceAgeH: number },
   now: Date,
 ): Assessed {
-  const valuation = valueCollateral(item, qty, { premium: settings.premium, maxPriceAgeH: settings.maxPriceAgeH, now });
+  let valuation = valueCollateral(item, qty, { premium: settings.premium, maxPriceAgeH: settings.maxPriceAgeH, now });
+  let cappedToAverage = false;
   const city = valuationCity(valuation);
   let dynamics: PriceDynamics = { ...FALLBACK_DYNAMICS };
   let source: Assessed['source'] = 'fallback';
@@ -110,14 +116,21 @@ function assess(
   } else if (hist.state === 'error') {
     sourceNote = `Estimation sans historique (${hist.message})`;
   } else {
-    const d = priceDynamics(hist.data[city], now.getTime());
+    const daily = hist.data[city];
+    const d = priceDynamics(daily, now.getTime());
+    // Ordre d'achat très au-dessus du prix moyen réellement payé récemment : plafonné (ordre piège).
+    if (daily && valuation.quick && valuation.quick.loc === city) {
+      const capped = capQuickToAverage(valuation, recentAveragePrice(daily, now.getTime()));
+      cappedToAverage = capped.cappedToAverage;
+      valuation = capped;
+    }
     if (d.fromHistory) {
       dynamics = d;
       source = 'history';
     } else sourceNote = `Estimation sans historique : moins de 5 jours de ventes connus à ${city} sur 30 jours.`;
   }
   const ev = evaluateLoan(terms, valuation.quick?.total ?? null, dynamics, rules, now);
-  return { valuation, dynamics, source, sourceNote, ev };
+  return { valuation, cappedToAverage, dynamics, source, sourceNote, ev };
 }
 
 // ---------------------------------------------------------------------------
@@ -204,7 +217,7 @@ export function LoansPage({ fetchImpl }: { fetchImpl?: FetchLike } = {}) {
   const { snapshot, recipes, settings, now, metaById, itemById } = useAppData();
   const [guild, updateGuild, resetGuild] = useGuildSettings();
   const store = useLoans();
-  const today = isoDay(now);
+  const today = localDay(now);
   const [form, setForm] = useState<Form>(() => emptyForm(today, guild));
   const [query, setQuery] = useState('');
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -411,6 +424,10 @@ export function LoansPage({ fetchImpl }: { fetchImpl?: FetchLike } = {}) {
   const ev = formA?.ev ?? null;
   const maxNice = ev?.maxLoan != null ? roundDownNice(ev.maxLoan) : null;
   const overMax = ev && maxNice != null && amountOk && amountNum > (ev.maxLoan ?? Infinity);
+  const overMaxText =
+    ev?.maxLoanBy === 'term'
+      ? `Le montant saisi dépasse le prêt max conseillé (${fmtSilver(maxNice ?? 0)}) : gage trop volatil pour couvrir le dû jusqu’à la fin des ${plural(guild.maxTermDays, 'jour')}.`
+      : `Le montant saisi dépasse le prêt max conseillé : LTV ${fmtPct(ev?.ltv ?? null, 0)} pour ${fmtPct(guild.maxLtv, 0)} au maximum.`;
 
   return (
     <section className="page gl-page" aria-labelledby="page-title">
@@ -495,7 +512,11 @@ export function LoansPage({ fetchImpl }: { fetchImpl?: FetchLike } = {}) {
             <Field
               id="gl-amount"
               label="Montant prêté"
-              help={maxNice != null ? `Prêt max conseillé : ${fmtSilver(maxNice)} (${fmtPct(guild.maxLtv, 0)} de la revente rapide).` : 'Choisissez un gage pour connaître le prêt max conseillé.'}
+              help={
+                maxNice != null
+                  ? `Prêt max conseillé : ${fmtSilver(maxNice)} (${ev?.maxLoanBy === 'term' ? `dû couvert jusqu’à la fin des ${guild.maxTermDays} jours` : `${fmtPct(guild.maxLtv, 0)} de la revente rapide`}).`
+                  : 'Choisissez un gage pour connaître le prêt max conseillé.'
+              }
             >
               <span className="gl-amount">
                 <span className="num-input">
@@ -570,6 +591,7 @@ export function LoansPage({ fetchImpl }: { fetchImpl?: FetchLike } = {}) {
                 maxAgeH={settings.maxPriceAgeH}
                 amountSet={amountOk}
                 overMax={!!overMax}
+                overMaxText={overMaxText}
                 onRetry={retryHists}
               />
             )}
@@ -679,6 +701,7 @@ function EvalCard({
   maxAgeH,
   amountSet,
   overMax,
+  overMaxText,
   onRetry,
 }: {
   a: Assessed;
@@ -689,6 +712,7 @@ function EvalCard({
   maxAgeH: number;
   amountSet: boolean;
   overMax: boolean;
+  overMaxText: string;
   onRetry: () => void;
 }) {
   const { valuation: v, ev, dynamics: d } = a;
@@ -703,7 +727,31 @@ function EvalCard({
       </p>
       {overMax && (
         <p className="gl-warn" role="alert">
-          Le montant saisi dépasse le prêt max conseillé : LTV {fmtPct(ev.ltv, 0)} pour {fmtPct(guild.maxLtv, 0)} au maximum.
+          {overMaxText}
+        </p>
+      )}
+      {v.quick && v.quick.countedQty < qty && (
+        <p className="gl-warn" data-testid="gl-liquidity">
+          Peu liquide : {(v.quick.dailyVolume ?? 0) < 1 ? `presque aucune vente par jour à ${v.quick.loc}` : `${v.quick.loc} n’en vend qu’environ ${fmtInt(v.quick.dailyVolume)} par jour`}.{' '}
+          {v.quick.countedQty === 1 ? 'Seule 1 unité' : `Seules ${fmtInt(v.quick.countedQty)} unités`} sur {fmtInt(qty)} ({QUICK_SALE_DAYS} jours de ventes au plus) comptent dans la
+          revente rapide : si la guilde saisit le gage, le reste mettra des jours à s’écouler, sans doute moins cher.
+        </p>
+      )}
+      {v.quick && v.quick.dailyVolume == null && (
+        <p className="field-help" data-testid="gl-liquidity-unknown">
+          Volume de ventes inconnu à {v.quick.loc} : la revente rapide suppose que les {plural(qty, 'unité')} se vendent au prix de l’ordre d’achat. Vérifiez en jeu
+          la quantité demandée par l’ordre.
+        </p>
+      )}
+      {v.quick?.stale && (
+        <p className="gl-warn" data-testid="gl-stale">
+          Prix de revente rapide périmé (vieux de {fmtAgeH(v.quick.ageH)}) : vérifiez l’ordre d’achat en jeu avant de prêter.
+        </p>
+      )}
+      {a.cappedToAverage && v.quick && (
+        <p className="field-help" data-testid="gl-capped">
+          L’ordre d’achat dépasse de plus de 25 % le prix moyen payé ces 7 derniers jours à {v.quick.loc} (ordre piège ou flambée passagère) : la
+          revente rapide est comptée à {fmtSilver(v.quick.unitPrice)}/unité.
         </p>
       )}
       {v.quick == null && v.listing == null ? (
@@ -745,7 +793,11 @@ function EvalCard({
                 <dt>Prêt max conseillé</dt>
                 <dd>
                   <strong>{fmtSilver(roundDownNice(ev.maxLoan ?? 0))}</strong>
-                  <span className="gl-quote">{fmtPct(guild.maxLtv, 0)} de la revente rapide</span>
+                  <span className="gl-quote">
+                    {ev.maxLoanBy === 'term'
+                      ? `limité par la volatilité : dû couvert jusqu’à la fin des ${plural(guild.maxTermDays, 'jour')} (LTV ${fmtPct(guild.maxLtv, 0)} non atteinte)`
+                      : `${fmtPct(guild.maxLtv, 0)} de la revente rapide`}
+                  </span>
                 </dd>
               </div>
               <div>
@@ -821,13 +873,18 @@ function EvalCard({
           <summary>Comment c’est calculé</summary>
           <ul>
             <li>
-              Revente rapide = meilleur ordre d’achat × (1 − taxe {fmtPct(v.tax, 0)}) × quantité ; mise en vente = vente minimale × (1 − taxe − 2,5 %
+              Revente rapide = meilleur ordre d’achat × (1 − taxe {fmtPct(v.tax, 0)}) × quantité, sans compter plus d’unités que la ville n’en vend
+              en {QUICK_SALE_DAYS} jours, et à 125 % au plus du prix moyen payé ces 7 derniers jours ; mise en vente = vente minimale × (1 − taxe − 2,5 %
               de frais d’ordre) × quantité. Les prix suspects (plus de 3 × la moyenne sur 7 jours) sont écartés.
             </li>
-            <li>Montant dû = montant prêté × (1 + intérêt). LTV = montant prêté ÷ revente rapide ; prêt max = {fmtPct(guild.maxLtv, 0)} × revente rapide.</li>
+            <li>
+              Montant dû = montant prêté × (1 + intérêt). LTV = montant prêté ÷ revente rapide ; prêt max = le plus petit de {fmtPct(guild.maxLtv, 0)} ×
+              revente rapide et du montant dont le dû reste couvert (valeur prudente moins la marge) jusqu’à la fin de la durée maximale.
+            </li>
             <li>
               Valeur prudente au jour t = revente rapide × exp(tendance × t − {String(Z_PRUDENT).replace('.', ',')} × volatilité × √t) : le prix
-              n’a qu’environ 1 chance sur 10 de tomber plus bas. Sans historique : tendance 0 et volatilité 3 %/jour.
+              n’a qu’environ 1 chance sur 10 de tomber plus bas. Une tendance à la hausse n’est jamais comptée. Sans historique : tendance 0 et
+              volatilité 3 %/jour.
             </li>
             <li>
               Date limite = premier jour où la valeur prudente, moins {fmtPct(guild.safetyMargin, 0)} de marge, passe sous le montant dû. Après,
@@ -947,7 +1004,7 @@ function LoanItem({
         )}
         {gain != null && (
           <div>
-            <dt>{gain >= 0 ? 'Gain de la saisie' : 'Perte de la saisie'}</dt>
+            <dt>{gain >= 0 ? 'Gain de la saisie' : 'Perte de la saisie'} (prix du jour)</dt>
             <dd className={gain >= 0 ? 'gl-pos' : 'gl-neg'} data-testid="gl-gain">
               {gain >= 0 ? '+' : '−'}
               {fmtSilver(Math.abs(gain))}
@@ -955,7 +1012,21 @@ function LoanItem({
           </div>
         )}
       </dl>
-      {open && a.source !== 'history' && ev.v0 != null && <p className="field-help">Estimation sans historique (tendance 0, volatilité 3 %/jour).</p>}
+      {open && a.source !== 'history' && ev.v0 != null && (
+        <p className="field-help">
+          {a.source === 'loading'
+            ? 'Historique en cours de chargement : estimation provisoire (tendance 0, volatilité 3 %/jour).'
+            : 'Estimation sans historique (tendance 0, volatilité 3 %/jour).'}
+        </p>
+      )}
+      {open && a.valuation.quick && a.valuation.quick.countedQty < loan.qty && (
+        <p className="field-help gl-neg" data-testid="gl-item-liquidity">
+          Peu liquide : {a.valuation.quick.countedQty === 1 ? 'seule 1 unité' : `seules ${fmtInt(a.valuation.quick.countedQty)} unités`} sur {fmtInt(loan.qty)} se revendent vite à {a.valuation.quick.loc} ; la revente rapide n’en compte pas plus.
+        </p>
+      )}
+      {open && a.valuation.quick && a.valuation.quick.dailyVolume == null && loan.qty > 1 && (
+        <p className="field-help">Volume de ventes inconnu à {a.valuation.quick.loc} : vérifiez en jeu qu’on peut revendre {fmtInt(loan.qty)} unités avant de compter sur ce gage.</p>
+      )}
       {loan.note && <p className="gl-note">{loan.note}</p>}
       <div className="gl-actions">
         {open ? (

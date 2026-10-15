@@ -253,11 +253,14 @@
   font-size: 24px;
   font-weight: 800;
   letter-spacing: -0.01em;
-  overflow-wrap: anywhere;
+  /* break-word et non anywhere : « 12 100 000 ag » ne doit pas se couper en « a / g » en 360 px. */
+  overflow-wrap: break-word;
+  font-variant-numeric: tabular-nums;
 }
 .g-stat-note {
   font-size: 12.5px;
-  color: var(--faint);
+  /* --faint sur la teinte guilde sombre ne donnait que 3,8:1 : --muted (≥ 4,5:1 dans les deux thèmes). */
+  color: var(--muted);
 }
 .g-stat-danger .g-stat-value {
   color: var(--danger);
@@ -292,6 +295,11 @@
 }
 .g-todo-danger {
   border-left-color: var(--danger);
+}
+.g-todo-item > span {
+  /* Pseudo très long sans espace (40 caractères) : ne doit pas élargir la page en 360 px. */
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 .g-todo-item a {
   font-weight: 600;
@@ -410,6 +418,6 @@
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
   .g-stat-value {
-    font-size: 20px;
+    font-size: 17px;
   }
 }
