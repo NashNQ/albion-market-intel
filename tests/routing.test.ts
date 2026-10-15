@@ -15,7 +15,26 @@ describe('parseHash (itération 3)', () => {
     expect(parseHash('#/routes')).toEqual({ name: 'routes' });
     expect(parseHash('#/transport')).toEqual({ name: 'transport' });
     expect(parseHash('#/favoris')).toEqual({ name: 'favoris' });
-    expect(parseHash('#/investir')).toEqual({ name: 'investir' });
-    expect(parseHash('#/investir?i=abc')).toEqual({ name: 'investir' });
+  });
+});
+
+describe('parseHash (itération 6 : mode Guilde)', () => {
+  it('route les pages de la guilde', () => {
+    expect(parseHash('#/guilde')).toEqual({ name: 'guilde' });
+    expect(parseHash('#/guilde/')).toEqual({ name: 'guilde' });
+    expect(parseHash('#/guilde/investir')).toEqual({ name: 'guilde-investir' });
+    expect(parseHash('#/guilde/investir?i=abc')).toEqual({ name: 'guilde-investir' });
+    expect(parseHash('#/guilde/prets')).toEqual({ name: 'guilde-prets' });
+    expect(parseHash('#/guilde/prets?l=xyz')).toEqual({ name: 'guilde-prets' });
+    expect(parseHash('#/guilde/reglages')).toEqual({ name: 'guilde-reglages' });
+    expect(parseHash('#/guilde/inconnu')).toEqual({ name: 'guilde' });
+  });
+  it('ancien lien #/investir : alias redirigé vers #/guilde/investir en conservant ?i=', () => {
+    expect(parseHash('#/investir')).toEqual({ name: 'guilde-investir', redirect: '#/guilde/investir' });
+    expect(parseHash('#/investir?i=x')).toEqual({ name: 'guilde-investir', redirect: '#/guilde/investir?i=x' });
+  });
+  it('ne confond pas une page joueur avec la guilde', () => {
+    expect(parseHash('#/guildes')).toEqual({ name: 'accueil' });
+    expect(parseHash('#/reglages')).toEqual({ name: 'reglages' });
   });
 });

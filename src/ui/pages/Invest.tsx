@@ -181,7 +181,7 @@ export function InvestPage() {
     set({ units: '' });
   };
 
-  // Lien de partage « #/investir?i=… » : pré-remplit le simulateur.
+  // Lien de partage « #/guilde/investir?i=… » (ancienne forme #/investir?i=… acceptée) : pré-remplit le simulateur.
   const applyShared = useCallback(
     (s: SharedInvestment) => {
       setSelKey(recipeKeyOf(s));

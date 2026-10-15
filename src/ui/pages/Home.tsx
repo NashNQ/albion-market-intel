@@ -394,6 +394,7 @@ export function HomePage() {
           : 'Chargement des données du serveur Europe. '}
         Non affilié à Sandbox Interactive. Visuels générés avec Higgsfield.
       </p>
+      <p className="mk-fineprint mk-guild">Site affilié à la guilde Varwyn (Albion Online, Europe).</p>
     </div>
   );
 }

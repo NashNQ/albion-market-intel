@@ -10,6 +10,8 @@ import { BlackMarket } from './pages/BlackMarket';
 import { SettingsPage } from './pages/Settings';
 import { HomePage } from './pages/Home';
 import { shareCodeFromHash } from './data/routesStore';
+import { MODE_HOME, modeForRoute, readStoredMode, storeMode, type Mode } from './data/mode';
+import { useGuildSettings } from './data/guildSettings';
 
 // Pages lourdes chargées à la demande (graphiques, fermes, transport…).
 const RouteBuilder = lazy(() => import('./pages/RouteBuilder').then((m) => ({ default: m.RouteBuilder })));
@@ -19,12 +21,18 @@ const TransportPage = lazy(() => import('./pages/Transport').then((m) => ({ defa
 const InvestPage = lazy(() => import('./pages/Invest').then((m) => ({ default: m.InvestPage })));
 const FavoritesPage = lazy(() => import('./pages/Favorites').then((m) => ({ default: m.FavoritesPage })));
 const ItemDetail = lazy(() => import('./pages/ItemDetail').then((m) => ({ default: m.ItemDetail })));
+// Mode Guilde
+const GuildDashboard = lazy(() => import('./pages/guild/Dashboard').then((m) => ({ default: m.GuildDashboard })));
+const LoansPage = lazy(() => import('./pages/guild/Loans').then((m) => ({ default: m.LoansPage })));
+const GuildSettingsPage = lazy(() => import('./pages/guild/GuildSettings').then((m) => ({ default: m.GuildSettingsPage })));
 
 export interface ParsedRoute {
   name: RouteName;
   itemId?: string;
   /** Code de route partagée (#/routes?r=…). */
   share?: string;
+  /** Hash canonique vers lequel réécrire l'URL (alias historique). */
+  redirect?: string;
 }
 
 export function parseHash(hash: string): ParsedRoute {
@@ -33,7 +41,21 @@ export function parseHash(hash: string): ParsedRoute {
     const share = shareCodeFromHash('#/' + h);
     return share ? { name: 'routes', share } : { name: 'routes' };
   }
-  if (h === 'investir' || h.startsWith('investir?')) return { name: 'investir' };
+  // Alias historique : #/investir(?i=…) → #/guilde/investir(?i=…), paramètres conservés.
+  if (h === 'investir' || h.startsWith('investir?')) return { name: 'guilde-investir', redirect: '#/guilde/' + h };
+  if (h === 'guilde' || h === 'guilde/' || h.startsWith('guilde?') || h.startsWith('guilde/')) {
+    const sub = h.slice('guilde'.length).replace(/^\//, '').split(/[?/]/)[0];
+    switch (sub) {
+      case 'investir':
+        return { name: 'guilde-investir' };
+      case 'prets':
+        return { name: 'guilde-prets' };
+      case 'reglages':
+        return { name: 'guilde-reglages' };
+      default:
+        return { name: 'guilde' };
+    }
+  }
   const [head, ...rest] = h.split('/');
   switch (head) {
     case '':
@@ -71,11 +93,35 @@ export function parseHash(hash: string): ParsedRoute {
   }
 }
 
+/** Réécrit l'URL sans ajouter d'entrée d'historique ni déclencher hashchange. */
+function replaceHash(hash: string) {
+  try {
+    window.history.replaceState(window.history.state, '', hash);
+  } catch {
+    /* URL inchangée : la page s'affiche quand même */
+  }
+}
+
+/** Route initiale : alias réécrit ; accueil nu + mode Guilde mémorisé → tableau de bord de la guilde. */
+function initialRoute(): ParsedRoute {
+  if (typeof window === 'undefined') return parseHash('');
+  const hash = window.location.hash;
+  if ((hash === '' || hash === '#' || hash === '#/') && readStoredMode() === 'guild') {
+    replaceHash(MODE_HOME.guild);
+    return parseHash(MODE_HOME.guild);
+  }
+  const r = parseHash(hash);
+  if (r.redirect) replaceHash(r.redirect);
+  return r;
+}
+
 function useHashRoute(): ParsedRoute {
-  const [route, setRoute] = useState(() => parseHash(typeof window === 'undefined' ? '' : window.location.hash));
+  const [route, setRoute] = useState(initialRoute);
   useEffect(() => {
     const on = () => {
-      setRoute(parseHash(window.location.hash));
+      const r = parseHash(window.location.hash);
+      if (r.redirect) replaceHash(r.redirect);
+      setRoute(r);
       window.scrollTo?.(0, 0);
     };
     window.addEventListener('hashchange', on);
@@ -110,6 +156,32 @@ function useTheme(): [Theme, () => void] {
   return [theme, toggle];
 }
 
+/**
+ * Mode Joueur / Guilde : suit la route (une page /guilde/* passe en Guilde, une page joueur repasse en Joueur,
+ * la fiche objet garde le mode courant) ; l'interrupteur change de mode et ouvre la page d'arrivée.
+ */
+function useMode(route: ParsedRoute): [Mode, () => void] {
+  const [mode, setMode] = useState<Mode>(() => modeForRoute(route.name) ?? readStoredMode());
+  useEffect(() => {
+    const forced = modeForRoute(route.name);
+    if (forced) setMode(forced);
+  }, [route.name]);
+  useEffect(() => {
+    document.documentElement.dataset.mode = mode;
+    storeMode(mode);
+  }, [mode]);
+  const toggle = useCallback(() => {
+    const next: Mode = mode === 'guild' ? 'player' : 'guild';
+    setMode(next);
+    try {
+      window.location.hash = MODE_HOME[next];
+    } catch {
+      /* navigation impossible : le mode change quand même */
+    }
+  }, [mode]);
+  return [mode, toggle];
+}
+
 export function App() {
   const market = useMarket();
   const [settings, updateSettings, resetSettings] = useSettings();
@@ -120,6 +192,8 @@ export function App() {
   const rankings = useMemo(() => toRankingsView(rawRankings), [rawRankings]);
   const route = useHashRoute();
   const [theme, toggleTheme] = useTheme();
+  const [mode, toggleMode] = useMode(route);
+  const [guild] = useGuildSettings();
 
   const indexes = useMemo(() => buildIndexes(market.snapshot, market.recipes), [market.snapshot, market.recipes]);
 
@@ -136,7 +210,8 @@ export function App() {
 
   const { status } = market;
   // Accueil et étude de cas restent lisibles sans données (chiffres en chargement).
-  const needsData = route.name !== 'reglages' && route.name !== 'accueil' && route.name !== 'a-propos';
+  const needsData =
+    route.name !== 'reglages' && route.name !== 'accueil' && route.name !== 'a-propos' && route.name !== 'guilde-reglages';
   let body;
   if (needsData && status === 'empty') body = <EmptyScreen />;
   else if (needsData && (!market.snapshot || !market.recipes))
@@ -146,7 +221,10 @@ export function App() {
   else if (route.name === 'fermes') body = <FarmsPage />;
   else if (route.name === 'transport') body = <TransportPage />;
   else if (route.name === 'favoris') body = <FavoritesPage />;
-  else if (route.name === 'investir') body = <InvestPage />;
+  else if (route.name === 'investir' || route.name === 'guilde-investir') body = <InvestPage />;
+  else if (route.name === 'guilde') body = <GuildDashboard />;
+  else if (route.name === 'guilde-prets') body = <LoansPage />;
+  else if (route.name === 'guilde-reglages') body = <GuildSettingsPage />;
   else if (route.name === 'craft') body = <TopCrafting />;
   else if (route.name === 'black-market') body = <BlackMarket />;
   else if (route.name === 'reglages') body = <SettingsPage />;
@@ -159,7 +237,15 @@ export function App() {
       <a className="skip" href="#contenu">
         Aller au contenu
       </a>
-      <Header current={route.name} ageMinutes={market.ageMinutes} theme={theme} onTheme={toggleTheme} />
+      <Header
+        current={route.name}
+        ageMinutes={market.ageMinutes}
+        theme={theme}
+        onTheme={toggleTheme}
+        mode={mode}
+        onMode={toggleMode}
+        guildName={guild.guildName}
+      />
       {(status === 'stale' || status === 'error') && <LateBanner updatedAt={market.updatedAt} onRetry={market.reload} />}
       <Layout>
         <Suspense fallback={<Skeleton />}>{body}</Suspense>

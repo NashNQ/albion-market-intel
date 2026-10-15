@@ -30,7 +30,11 @@ GitHub Actions (gratuit)                    Netlify (plan Free)            Navig
 
 Périmètre (générateur v4) : raffinage, équipement @0–@4, consommables de **cuisine** et d'**alchimie** @0–@3 (bonus Caerleon / Brecilien, quantités produites 5–10 par craft), poids des objets dans `meta`.
 
-Page **Investir** (`#/investir`) : simulateur de retour sur investissement d'un membre financé par la guilde (point mort, ROI 30/90 j, 3 scénarios), coût de montée en compétence estimé depuis les données du jeu (`src/engine/leveling.ts`) et portefeuille local (`ami.invest.v1`) avec lien de partage et résumé Discord.
+Page **Investir** (`#/guilde/investir`, ancien lien `#/investir?i=…` redirigé) : simulateur de retour sur investissement d'un membre financé par la guilde (point mort, ROI 30/90 j, 3 scénarios), coût de montée en compétence estimé depuis les données du jeu (`src/engine/leveling.ts`) et portefeuille local (`ami.invest.v1`) avec lien de partage et résumé Discord.
+
+**Mode Guilde** (site affilié à la guilde Varwyn) : interrupteur Joueur / Guilde dans l'en-tête (`ami.mode`, routes `#/guilde/*`) ; tableau de bord des officiers (`#/guilde`), Investir, prêts sur gage (`#/guilde/prets`) et réglages guilde (`#/guilde/reglages`) avec export / import JSON des données de guilde, seul moyen de les partager puisque tout reste dans le navigateur.
+
+Page **Prêts sur gage** (`#/guilde/prets`, `src/engine/pawn.ts`) : valeur du gage (revente rapide = meilleur ordre d'achat × (1 − taxe), mise en vente = vente min × (1 − taxe − 2,5 %), prix suspects écartés), prêt max = LTV max × revente rapide, dû = montant × (1 + intérêt) ; valeur prudente V(t) = V0 × exp(tendance × t − 1,28 × σ × √t) d'après l'historique AODP 30 j (repli sans historique : σ = 3 %/jour) → date limite (V(t) × (1 − marge) < dû : mieux vaut garder le gage) et retour idéal ; prêts locaux (`ami.loans.v1`, règles `ami.guild.v1`) avec lien de partage `?l=` et résumé Discord.
 
 Règles de données : prix à 0 ou daté `0001-01-01` = absent ; prix plus vieux que 6 h exclus (réglable) ; prix > 3× la moyenne 7 j (vente) ou < 1/3 (achat) = suspect, exclu.
 

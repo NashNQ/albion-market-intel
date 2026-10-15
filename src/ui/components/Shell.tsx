@@ -1,21 +1,79 @@
 import { useEffect, useRef, type ReactNode } from 'react';
 import { fmtClock, fmtInt } from '../format';
+import type { Mode } from '../data/mode';
 
-export type RouteName = 'accueil' | 'raffinage' | 'craft' | 'transport' | 'fermes' | 'investir' | 'favoris' | 'black-market' | 'routes' | 'item' | 'reglages' | 'a-propos';
+export type RouteName =
+  | 'accueil'
+  | 'raffinage'
+  | 'craft'
+  | 'transport'
+  | 'fermes'
+  /** Alias historique de « guilde-investir » (#/investir?i=… redirige vers #/guilde/investir?i=…). */
+  | 'investir'
+  | 'favoris'
+  | 'black-market'
+  | 'routes'
+  | 'item'
+  | 'reglages'
+  | 'a-propos'
+  | 'guilde'
+  | 'guilde-investir'
+  | 'guilde-prets'
+  | 'guilde-reglages';
 
-const TABS: { route: RouteName; href: string; label: string }[] = [
+export interface Tab {
+  route: RouteName;
+  href: string;
+  label: string;
+}
+
+export const PLAYER_TABS: Tab[] = [
   { route: 'accueil', href: '#/', label: 'Accueil' },
   { route: 'raffinage', href: '#/raffinage', label: 'Raffinage' },
   { route: 'craft', href: '#/craft', label: 'Craft' },
   { route: 'transport', href: '#/transport', label: 'Transport' },
   { route: 'fermes', href: '#/fermes', label: 'Fermes' },
-  { route: 'investir', href: '#/investir', label: 'Investir' },
   { route: 'routes', href: '#/routes', label: 'Mes routes' },
   { route: 'favoris', href: '#/favoris', label: 'Favoris' },
   { route: 'black-market', href: '#/black-market', label: 'Black Market' },
   { route: 'reglages', href: '#/reglages', label: 'Réglages' },
   { route: 'a-propos', href: '#/a-propos', label: 'À propos' },
 ];
+
+export const GUILD_TABS: Tab[] = [
+  { route: 'guilde', href: '#/guilde', label: 'Tableau de bord' },
+  { route: 'guilde-investir', href: '#/guilde/investir', label: 'Investir' },
+  { route: 'guilde-prets', href: '#/guilde/prets', label: 'Prêts sur gage' },
+  { route: 'guilde-reglages', href: '#/guilde/reglages', label: 'Réglages guilde' },
+];
+
+export const tabsFor = (mode: Mode): Tab[] => (mode === 'guild' ? GUILD_TABS : PLAYER_TABS);
+
+/** Interrupteur Joueur / Guilde (façon iOS) : un vrai bouton role="switch", activable au clavier. */
+export function ModeSwitch({ mode, onToggle }: { mode: Mode; onToggle: () => void }) {
+  const guild = mode === 'guild';
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={guild}
+      aria-label="Mode Guilde"
+      title={guild ? 'Revenir au mode Joueur' : 'Passer au mode Guilde (officiers)'}
+      className="mode-switch"
+      onClick={onToggle}
+    >
+      <span className="mode-label mode-label-player" aria-hidden="true">
+        Joueur
+      </span>
+      <span className="mode-track" aria-hidden="true">
+        <span className="mode-thumb" />
+      </span>
+      <span className="mode-label mode-label-guild" aria-hidden="true">
+        Guilde
+      </span>
+    </button>
+  );
+}
 
 export type Theme = 'dark' | 'light';
 
@@ -42,12 +100,19 @@ export function Header({
   ageMinutes,
   theme,
   onTheme,
+  mode = 'player',
+  onMode,
+  guildName = 'Varwyn',
 }: {
   current: RouteName;
   ageMinutes: number | null;
   theme: Theme;
   onTheme: () => void;
+  mode?: Mode;
+  onMode?: () => void;
+  guildName?: string;
 }) {
+  const tabs = tabsFor(mode);
   // En mobile, la barre d'onglets défile horizontalement : on garde l'onglet actif visible (ex. « À propos »).
   const tabsRef = useRef<HTMLElement>(null);
   useEffect(() => {
@@ -59,7 +124,7 @@ export function Header({
     if (left < nav.scrollLeft || right > nav.scrollLeft + nav.clientWidth) {
       nav.scrollLeft = Math.max(0, left - (nav.clientWidth - active.offsetWidth) / 2);
     }
-  }, [current]);
+  }, [current, mode]);
   return (
     <header className="site-head">
       <div className="head-row">
@@ -69,8 +134,18 @@ export function Header({
             Albion Market Intel <span className="brand-srv">Europe</span>
           </span>
         </a>
+        {mode === 'guild' && (
+          <span className="guild-badge" title="Outils réservés aux officiers et dirigeants de la guilde">
+            <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true">
+              <path d="M8 1.5 13.5 3.5v4.2c0 3.2-2.3 5.6-5.5 6.8-3.2-1.2-5.5-3.6-5.5-6.8V3.5z" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" />
+            </svg>
+            <span className="sr-only">Guilde </span>
+            {guildName || 'Varwyn'}
+          </span>
+        )}
         <div className="head-tools">
           <FreshnessPill ageMinutes={ageMinutes} />
+          {onMode && <ModeSwitch mode={mode} onToggle={onMode} />}
           <button
             type="button"
             className="theme-btn"
@@ -91,8 +166,8 @@ export function Header({
           </button>
         </div>
       </div>
-      <nav className="tabs" aria-label="Sections" ref={tabsRef}>
-        {TABS.map((t) => (
+      <nav className="tabs" aria-label={mode === 'guild' ? 'Sections de la guilde' : 'Sections'} ref={tabsRef}>
+        {tabs.map((t) => (
           <a key={t.route} href={t.href} className="tab" aria-current={current === t.route ? 'page' : undefined}>
             {t.label}
           </a>
@@ -166,6 +241,7 @@ export function Footer() {
         Non affilié à Sandbox Interactive. Code source sur{' '}
         <a href="https://github.com/NashNQ/albion-market-intel">GitHub (NashNQ/albion-market-intel)</a>.
       </p>
+      <p className="foot-guild">Site affilié à la guilde Varwyn (Albion Online, Europe).</p>
     </footer>
   );
 }

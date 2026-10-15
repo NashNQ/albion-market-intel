@@ -136,6 +136,11 @@ const TIMELINE: { when: string; title: string; text: string }[] = [
     title: 'Investir : un besoin de guilde',
     text: 'Une guilde finance ses membres pour qu’ils produisent. La page « Investir » calcule quand le capital revient (3 scénarios), le coût de montée en raffinage ou en craft jusqu’à un tier, d’après les tables de renommée du jeu, et suit un portefeuille d’investissements avec un résumé à coller sur Discord.',
   },
+  {
+    when: 'Itération 6',
+    title: 'Mode Guilde',
+    text: 'Le site devient affilié à la guilde Varwyn. Un interrupteur Joueur / Guilde ouvre les outils des officiers : tableau de bord, Investir, et des prêts sur gage dont la date limite conseillée est calculée sur la volatilité du prix du gage (au-delà, saisir et revendre l’objet devient plus sûr qu’attendre). Les données se partagent entre officiers par un fichier de sauvegarde.',
+  },
 ];
 
 const FINDINGS: { title: string; text: string }[] = [
@@ -209,6 +214,7 @@ export function AboutPage() {
           <ol>
             <li><a href="#cs-probleme" onClick={jump('cs-probleme')}>Le problème</a></li>
             <li><a href="#cs-reponse" onClick={jump('cs-reponse')}>La réponse</a></li>
+            <li><a href="#cs-guilde" onClick={jump('cs-guilde')}>Le mode Guilde</a></li>
             <li><a href="#cs-architecture" onClick={jump('cs-architecture')}>L’architecture</a></li>
             <li><a href="#cs-methode" onClick={jump('cs-methode')}>La méthode</a></li>
             <li><a href="#cs-audit" onClick={jump('cs-audit')}>Ce que l’audit a trouvé</a></li>
@@ -261,6 +267,27 @@ export function AboutPage() {
                 <dd className="mk-facts-note">{liveItems == null ? 'chargement en cours' : 'objets dans le dernier relevé'}</dd>
               </div>
             </dl>
+          </section>
+
+          <section id="cs-guilde" className="mk-cs" tabIndex={-1} aria-labelledby="cs-guilde-t">
+            <h2 id="cs-guilde-t">Le mode Guilde</h2>
+            <p>
+              Albion Market Intel est affilié à la guilde <strong>Varwyn</strong> (Albion Online, serveur Europe).
+              L’interrupteur « Joueur / Guilde » de l’en-tête sépare deux usages : le mode Joueur, ouvert à tous, garde
+              les classements ; le mode Guilde réunit les outils des officiers et dirigeants.
+            </p>
+            <ul className="mk-list">
+              <li>un tableau de bord : capital confié aux membres, prêts en cours, alertes du jour ;</li>
+              <li>« Investir », le simulateur de financement d’un membre et son portefeuille ;</li>
+              <li>
+                les prêts sur gage : la guilde prête contre un objet, et une date limite conseillée est calculée sur la
+                volatilité du prix de ce gage ;
+              </li>
+              <li>des réglages communs et un fichier de sauvegarde pour partager les données entre officiers.</li>
+            </ul>
+            <p>
+              Tout reste dans le navigateur : aucun compte, aucun serveur, et rien qui touche au jeu.
+            </p>
           </section>
 
           <section id="cs-architecture" className="mk-cs" tabIndex={-1} aria-labelledby="cs-architecture-t">

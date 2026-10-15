@@ -200,7 +200,7 @@ describe('page Investir — portefeuille', () => {
     expect(text).toContain('Capital : 200 000 ag · part investisseur 50 %');
     expect(text).toContain('Point mort : ≈ 58 jours (central)');
     expect(text).toMatch(/ROI 30 j : [+−]\d+ %/);
-    const code = /#\/investir\?i=([A-Za-z0-9_-]+)>$/.exec(text)![1];
+    const code = /#\/guilde\/investir\?i=([A-Za-z0-9_-]+)>$/.exec(text)![1];
     expect(decodeInvestment(code)).toMatchObject({ member: 'Aldric', outputId: 'T6_PLANKS', capital: 200000 });
     expect(within(item).getByRole('button', { name: 'Résumé copié' })).toBeTruthy();
 
@@ -209,7 +209,7 @@ describe('page Investir — portefeuille', () => {
       fireEvent.click(within(item).getByRole('button', { name: 'Copier le lien' }));
     });
     const area = screen.getByLabelText(/Copie automatique impossible/) as HTMLTextAreaElement;
-    expect(area.value).toContain('#/investir?i=');
+    expect(area.value).toContain('#/guilde/investir?i=');
     expect(document.activeElement).toBe(area);
   });
 

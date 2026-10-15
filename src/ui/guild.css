@@ -1,0 +1,415 @@
+/* Mode Guilde (Varwyn) : interrupteur Joueur / Guilde, identité « acier » et pages des officiers.
+   Chargé après styles.css. L'accent change via les jetons, dans les deux thèmes ; contraste ≥ 4,5:1
+   sur --bg, --surface et --surface-2 (sombre : 9,6 / 8,7 / 7,8 ; clair : 7,3 / 6,6 / 6,2). */
+
+:root[data-mode='guild']:not([data-theme='light']) {
+  --accent: #8ec5e8;
+  --accent-ink: #0a1a26;
+  --focus: #bfe0f7;
+  --guild-tint: color-mix(in srgb, #8ec5e8 9%, var(--surface));
+}
+:root[data-mode='guild'][data-theme='light'] {
+  --accent: #1d5a8a;
+  --accent-ink: #ffffff;
+  --focus: #1d4ed8;
+  --guild-tint: color-mix(in srgb, #1d5a8a 6%, var(--surface));
+}
+
+/* Un filet d'accent sous l'en-tête signale le mode sans le crier. */
+:root[data-mode='guild'] .site-head {
+  box-shadow: inset 0 -2px 0 var(--accent);
+}
+
+/* ---------- Interrupteur Joueur / Guilde ---------- */
+.mode-switch {
+  --track-w: 34px;
+  --track-h: 20px;
+  --thumb: 14px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  background: transparent;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 3px 9px;
+  min-height: 30px;
+  color: var(--muted);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: transform var(--dur-fast) var(--ease-out);
+}
+.mode-switch:active {
+  transform: var(--press);
+}
+.mode-label {
+  transition: color var(--dur-fast) ease;
+}
+.mode-switch[aria-checked='false'] .mode-label-player,
+.mode-switch[aria-checked='true'] .mode-label-guild {
+  color: var(--text);
+}
+.mode-track {
+  position: relative;
+  flex: none;
+  width: var(--track-w);
+  height: var(--track-h);
+  border-radius: 999px;
+  background: var(--surface-2);
+  box-shadow: inset 0 0 0 1px var(--line-strong);
+  transition: background-color var(--dur-fast) ease;
+}
+.mode-switch[aria-checked='true'] .mode-track {
+  background: var(--accent);
+  box-shadow: none;
+}
+.mode-thumb {
+  position: absolute;
+  top: calc((var(--track-h) - var(--thumb)) / 2);
+  left: calc((var(--track-h) - var(--thumb)) / 2);
+  width: var(--thumb);
+  height: var(--thumb);
+  border-radius: 50%;
+  background: var(--text);
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.35);
+  /* < 200 ms, courbe ease-out forte : le curseur part tout de suite et se pose en douceur. */
+  transition:
+    transform 180ms cubic-bezier(0.23, 1, 0.32, 1),
+    background-color var(--dur-fast) ease;
+}
+.mode-switch[aria-checked='true'] .mode-thumb {
+  transform: translateX(calc(var(--track-w) - var(--track-h)));
+  background: var(--accent-ink);
+}
+@media (hover: hover) and (pointer: fine) {
+  .mode-switch:hover {
+    border-color: var(--line-strong);
+  }
+  .mode-switch:hover .mode-label {
+    color: var(--text);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  /* Pas de glissement ni de rétrécissement : le changement d'état reste lisible par la couleur. */
+  .mode-thumb {
+    transition: background-color var(--dur-fast) ease;
+  }
+  .mode-switch:active {
+    transform: none;
+  }
+}
+
+/* ---------- Nom de la guilde dans l'en-tête ---------- */
+.guild-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-right: auto;
+  padding: 2px 9px;
+  border: 1px solid var(--accent);
+  border-radius: 999px;
+  color: var(--accent);
+  font-weight: 700;
+  font-size: 13px;
+  letter-spacing: 0.02em;
+  max-width: 18ch;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ---------- Pied de page ---------- */
+.foot-guild {
+  color: var(--muted);
+}
+
+/* ---------- Pages du mode Guilde ---------- */
+.g-kicker {
+  margin: 4px 0 0;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+.g-card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 16px 18px;
+  margin: 16px 0 0;
+  min-width: 0;
+}
+.g-card h2 {
+  margin: 0 0 8px;
+  font-size: 18px;
+  font-weight: 800;
+}
+.g-explain {
+  margin: 0 0 12px;
+  color: var(--muted);
+  max-width: 72ch;
+}
+.g-empty {
+  margin: 0;
+  padding: 14px;
+  border: 1px dashed var(--line-strong);
+  border-radius: 8px;
+  color: var(--muted);
+}
+.g-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+.g-btn-primary {
+  background: var(--accent);
+  color: var(--accent-ink);
+  border-color: var(--accent);
+}
+.g-btn-danger {
+  background: var(--danger);
+  color: #fff;
+  border-color: var(--danger);
+}
+:root:not([data-theme='light']) .g-btn-danger {
+  color: #1a0806;
+}
+.g-file {
+  display: inline-flex;
+  align-items: center;
+}
+.g-file:active {
+  transform: var(--press);
+}
+/* Le champ fichier est masqué : son focus clavier se reporte sur le libellé-bouton. */
+.g-file:has(+ input[type='file']:focus-visible) {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+.g-name-input {
+  max-width: 320px;
+  width: 100%;
+}
+.field-err {
+  margin: 0;
+  font-size: 13px;
+  color: var(--danger);
+}
+.g-confirm {
+  margin-top: 14px;
+  padding: 12px 14px;
+  border-left: 4px solid var(--warn);
+  background: color-mix(in srgb, var(--warn) 9%, var(--surface));
+  border-radius: 0 8px 8px 0;
+}
+.g-confirm p {
+  margin: 0 0 6px;
+}
+.g-confirm-title {
+  font-weight: 800;
+}
+.g-confirm-list {
+  margin: 0;
+  padding-left: 20px;
+}
+.g-msg {
+  margin: 10px 0 0;
+  min-height: 1.45em;
+}
+.g-msg-ok {
+  color: var(--profit);
+}
+.g-msg-err {
+  color: var(--danger);
+}
+
+/* Chiffres clés */
+.g-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+  gap: 10px;
+  margin: 14px 0 0;
+}
+.g-stat {
+  background: var(--guild-tint, var(--surface));
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 12px 14px;
+  min-width: 0;
+}
+.g-stat dt {
+  font-size: 13px;
+  color: var(--muted);
+  font-weight: 600;
+}
+.g-stat dd {
+  margin: 0;
+}
+.g-stat-value {
+  font-size: 24px;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  overflow-wrap: anywhere;
+}
+.g-stat-note {
+  font-size: 12.5px;
+  color: var(--faint);
+}
+.g-stat-danger .g-stat-value {
+  color: var(--danger);
+}
+.g-stat-ok .g-stat-value {
+  color: var(--profit);
+}
+
+.g-cols {
+  display: grid;
+  grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+  gap: 0 16px;
+}
+
+/* À faire */
+.g-todo {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+.g-todo-item {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 4px 12px;
+  padding: 8px 10px 8px 12px;
+  border-left: 3px solid var(--warn);
+  background: var(--surface-2);
+  border-radius: 0 6px 6px 0;
+}
+.g-todo-danger {
+  border-left-color: var(--danger);
+}
+.g-todo-item a {
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+/* Raccourcis */
+.g-shortcuts {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+.g-shortcut {
+  display: grid;
+  gap: 2px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  color: var(--text);
+  text-decoration: none;
+  transition:
+    transform var(--dur-fast) var(--ease-out),
+    border-color var(--dur) ease;
+}
+.g-shortcut strong {
+  color: var(--accent);
+}
+.g-shortcut span {
+  font-size: 13px;
+  color: var(--muted);
+}
+.g-shortcut:active {
+  transform: var(--press);
+}
+
+/* Opportunités */
+.g-opps {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 6px;
+}
+.g-opp {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--line);
+}
+.g-opp:last-child {
+  border-bottom: 0;
+}
+.g-opp-main {
+  display: grid;
+  min-width: 0;
+  flex: 1;
+}
+.g-opp-main a {
+  font-weight: 700;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.g-opp-meta {
+  font-size: 13px;
+  color: var(--muted);
+}
+.g-opp-cta {
+  flex: none;
+  text-decoration: none;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .g-shortcut:hover {
+    border-color: var(--accent);
+  }
+  .g-btn-primary:hover {
+    background: color-mix(in srgb, var(--accent) 88%, var(--text));
+    border-color: var(--accent);
+  }
+  .g-btn-danger:hover {
+    background: color-mix(in srgb, var(--danger) 88%, var(--text));
+    border-color: var(--danger);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .g-shortcut:active,
+  .g-file:active {
+    transform: none;
+  }
+}
+
+/* ---------- Mobile (360 px) ---------- */
+@media (max-width: 800px) {
+  .g-cols {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+@media (max-width: 640px) {
+  .head-tools {
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    row-gap: 6px;
+    max-width: 100%;
+  }
+  .guild-badge {
+    max-width: 12ch;
+  }
+  .g-card {
+    padding: 14px;
+  }
+  .g-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .g-stat-value {
+    font-size: 20px;
+  }
+}

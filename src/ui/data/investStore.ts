@@ -6,7 +6,7 @@ export const INVEST_KEY = 'ami.invest.v1';
 export const MAX_INVESTMENTS = 50;
 export const MAX_TEXT = 60;
 export const MAX_SILVER = 1e12;
-export const INVEST_SHARE_PREFIX = '#/investir?i=';
+export const INVEST_SHARE_PREFIX = '#/guilde/investir?i=';
 
 export interface SavedInvestment {
   v: 1;
@@ -187,9 +187,9 @@ export function decodeInvestment(code: string): SharedInvestment | null {
   }
 }
 
-/** Code `i` d'un hash « #/investir?i=… ». */
+/** Code `i` d'un hash « #/guilde/investir?i=… » (ou de l'ancienne forme « #/investir?i=… »). */
 export function investCodeFromHash(hash: string): string | null {
-  const m = /^#?\/?investir\?(.*)$/.exec(hash);
+  const m = /^#?\/?(?:guilde\/)?investir\?(.*)$/.exec(hash);
   if (!m) return null;
   return new URLSearchParams(m[1]).get('i');
 }
